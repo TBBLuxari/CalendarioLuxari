@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Mi Horario Semanal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div id="topbar">
+  <div id="row1">
+    <span class="title">🗓 Mi Horario Semanal</span>
+    <div class="ctrls">
+      <span class="hint">Clic · Arrastra · 2×clic borra</span>
+      <button class="btn" id="tbtn" onclick="toggleTheme()">🌙</button>
+      <button class="btn" id="notifBtn" onclick="toggleNotifs()">🔕 Avisos</button>
+      <button class="btn" onclick="exportICS()">📅 Exportar</button>
+      <button class="btn" onclick="saveData()">💾 Guardar</button>
+      <button class="btn" onclick="clearAll()">🧹 Limpiar</button>
+      <button class="btn" onclick="resetAll()">↺ Recargar</button>
+    </div>
+  </div>
+  <div id="pal-row">
+    <span class="pal-lbl">Actividad →</span>
+    <div id="palette"></div>
+    <button class="btn" id="editActsBtn" onclick="openActivityEditor()">✏️ Editar</button>
+  </div>
+</div>
+
+<div id="grid">
+  <table id="sched">
+    <thead><tr id="hrow"></tr></thead>
+    <tbody id="sbody"></tbody>
+  </table>
+</div>
+
+<div id="dragTip"></div>
+<div id="toast"></div>
+
+<div id="actModal">
+  <div class="modal-box">
+    <h2>Actividades</h2>
+    <div id="actList"></div>
+    <form id="newActForm">
+      <input type="text" id="newActName" placeholder="Nueva actividad…" required>
+      <input type="text" id="newActIcon" placeholder="🙂" maxlength="4">
+      <input type="color" id="newActBg" value="#ececea" title="Color de fondo">
+      <input type="color" id="newActFg" value="#333333" title="Color de letra">
+      <button type="submit" class="btn">+ Añadir</button>
+    </form>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeActivityEditor()">Listo</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/activities.js"></script>
+<script src="js/grid.js"></script>
+<script src="js/ics.js"></script>
+<script src="js/notify.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

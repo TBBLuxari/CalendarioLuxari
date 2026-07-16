@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "horario-bun",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": ["run", "server.js"],
+      "port": 3000
+    }
+  ]
+}

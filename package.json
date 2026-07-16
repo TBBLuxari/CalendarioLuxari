@@ -1,0 +1,9 @@
+{
+  "name": "calendario-luxari",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Horario semanal interactivo con recordatorios (Mi Horario Semanal)",
+  "scripts": {
+    "dev": "bun run server.js"
+  }
+}
