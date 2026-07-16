@@ -136,6 +136,8 @@ function init(){
   updateNotifBtn();
   setInterval(checkActivityChange, 15000);
 
+  initGoogleAuth();
+
   window.addEventListener('resize', resize);
   (document.fonts?.ready || Promise.resolve()).then(resize);
   setTimeout(resize, 100);

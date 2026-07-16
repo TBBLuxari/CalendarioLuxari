@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 
@@ -17,7 +18,8 @@
       <span class="hint">Clic · Arrastra · 2×clic borra</span>
       <button class="btn" id="tbtn" onclick="toggleTheme()">🌙</button>
       <button class="btn" id="notifBtn" onclick="toggleNotifs()">🔕 Avisos</button>
-      <button class="btn" onclick="exportICS()">📅 Exportar</button>
+      <button class="btn" onclick="exportICS()">📅 Exportar .ics</button>
+      <button class="btn" id="gsyncBtn" onclick="syncGoogleCalendar()">📆 Sincronizar Google</button>
       <button class="btn" onclick="saveData()">💾 Guardar</button>
       <button class="btn" onclick="clearAll()">🧹 Limpiar</button>
       <button class="btn" onclick="resetAll()">↺ Recargar</button>
@@ -61,6 +63,7 @@
 <script src="js/grid.js"></script>
 <script src="js/ics.js"></script>
 <script src="js/notify.js"></script>
+<script src="js/google-sync.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

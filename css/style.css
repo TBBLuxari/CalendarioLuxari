@@ -26,6 +26,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .btn{font:500 11px/1 inherit;padding:5px 9px;border-radius:7px;border:1px solid var(--btn-border);background:var(--btn-bg);color:var(--text);cursor:pointer;white-space:nowrap;transition:background .12s;}
 .btn:hover,.btn:active{background:var(--btn-hover);}
 .btn.on{border-color:var(--now);color:var(--now);}
+.btn:disabled{opacity:.6;cursor:wait;}
 .hint{font-size:9px;color:var(--text3);}
 @media(max-width:500px){.hint{display:none;}}
 
