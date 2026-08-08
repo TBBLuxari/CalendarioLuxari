@@ -122,6 +122,18 @@ async function pushEvents(calId){
         end: {dateTime: toLocalDateTime(endDate), timeZone: tz},
         recurrence: ['RRULE:FREQ=WEEKLY'],
         reminders: {useDefault: false, overrides: [{method: 'popup', minutes: 0}]},
+        // Guardamos el bloque y la definición completa de la actividad (id,
+        // color, ícono) como propiedad privada, invisible en la UI de Google
+        // Calendar, para poder reconstruir el horario exacto al "traer" desde
+        // otro computador — no solo el texto del evento.
+        extendedProperties: {
+          private: {
+            hsDay: String(d),
+            hsStart: String(b.start),
+            hsEnd: String(b.end),
+            hsAct: JSON.stringify({id: a.id, label: a.label, icon: a.icon || '', bg: a.bg, fg: a.fg}),
+          },
+        },
       });
     });
   }
@@ -158,4 +170,109 @@ function setGSyncBtnState(active){
   if(!b) return;
   b.disabled = active;
   b.textContent = active ? '⏳ Sincronizando…' : '📆 Sincronizar Google';
+}
+
+/* TRAER DE GOOGLE
+   Contraparte de syncGoogleCalendar(): en vez de sobrescribir Google con lo
+   local, reconstruye el horario y las actividades locales a partir de lo que
+   ya hay en el calendario dedicado "Mi Horario Semanal". Así, dos
+   computadores pueden coordinarse: uno sincroniza (sube), el otro trae
+   (baja), en vez de que cada uno sobreescriba con su propia versión.
+*/
+let gPulling = false;
+
+function pullFromGoogleCalendar(){
+  if(gPulling) return;
+  if(!tokenClient){ toast('Google todavía está cargando, intenta de nuevo en unos segundos'); return; }
+  if(!confirm(`Esto REEMPLAZA tu horario y actividades locales con lo que haya guardado en el calendario "${GCAL_NAME}" de tu cuenta de Google. Si tienes cambios locales sin sincronizar, se perderán. ¿Continuar?`)) return;
+  setGPullBtnState(true);
+  gPulling = true;
+  if(gAccessToken){
+    runPull().finally(() => { gPulling = false; });
+  }else{
+    const prevCallback = tokenClient.callback;
+    tokenClient.callback = async (resp) => {
+      tokenClient.callback = prevCallback;
+      if(resp.error){
+        toast('Google: autorización rechazada');
+        setGPullBtnState(false);
+        gPulling = false;
+        return;
+      }
+      gAccessToken = resp.access_token;
+      await runPull();
+      gPulling = false;
+    };
+    tokenClient.requestAccessToken({prompt: ''});
+  }
+}
+
+async function fetchAllEvents(calId){
+  let pageToken;
+  const items = [];
+  do{
+    const url = new URL(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events`);
+    url.searchParams.set('maxResults', '250');
+    url.searchParams.set('showDeleted', 'false');
+    if(pageToken) url.searchParams.set('pageToken', pageToken);
+    const page = await gFetch(url.toString());
+    (page.items || []).forEach(e => items.push(e));
+    pageToken = page.nextPageToken;
+  } while(pageToken);
+  return items;
+}
+
+async function runPull(){
+  try{
+    toast('🔗 Conectando con Google Calendar…');
+    const calId = await findOrCreateCalendar();
+    const events = await fetchAllEvents(calId);
+
+    const newData = Array.from({length: 7}, () => Array(24).fill('free'));
+    const newActivities = [DEFAULT_ACTIVITIES.find(a => a.id === 'free')];
+    const seenActIds = new Set(['free']);
+    let blocksApplied = 0;
+
+    events.forEach(e => {
+      const p = e.extendedProperties?.private;
+      if(!p || !p.hsAct || p.hsDay === undefined) return;
+      let act;
+      try{ act = JSON.parse(p.hsAct); }catch(err){ return; }
+      const d = +p.hsDay, start = +p.hsStart, end = +p.hsEnd;
+      if(!(d >= 0 && d < 7) || !(start >= 0 && end <= 24 && start < end)) return;
+
+      if(!seenActIds.has(act.id)){
+        seenActIds.add(act.id);
+        newActivities.push({id: act.id, label: act.label, icon: act.icon || '', bg: act.bg, fg: act.fg});
+      }
+      for(let h = start; h < end; h++) newData[d][h] = act.id;
+      blocksApplied++;
+    });
+
+    if(blocksApplied === 0){
+      toast('⚠️ No se encontraron bloques guardados en Google (¿ya sincronizaste desde algún computador?)');
+      return;
+    }
+
+    data = newData;
+    activities = newActivities;
+    reindexActivities();
+    saveActivities();
+    saveData();
+    renderPalette();
+    renderAll();
+    toast(`✓ Horario traído de Google (${blocksApplied} bloques)`);
+  }catch(err){
+    console.error(err);
+    toast('❌ Falló al traer el horario desde Google Calendar');
+  }finally{
+    setGPullBtnState(false);
+  }
+}
+
+function setGPullBtnState(active){
+  const b = document.getElementById('gpullBtn');
+  if(!b) return;
+  b.disabled = active;
+  b.textContent = active ? '⏳ Trayendo…' : '🔄 Traer de Google';
 }

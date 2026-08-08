@@ -16,19 +16,24 @@
     <span class="title">🗓 Mi Horario Semanal</span>
     <div class="ctrls">
       <span class="hint">Clic · Arrastra · 2×clic borra</span>
+      <span class="hint" id="roleBadge"></span>
+      <button class="btn owner-only" id="propBtn" onclick="openPropModal()">📩 Propuestas (0)</button>
+      <button class="btn guest-only" onclick="copyProposalsText()">📋 Copiar propuestas</button>
       <button class="btn" id="tbtn" onclick="toggleTheme()">🌙</button>
       <button class="btn" id="notifBtn" onclick="toggleNotifs()">🔕 Avisos</button>
       <button class="btn" onclick="exportICS()">📅 Exportar .ics</button>
-      <button class="btn" id="gsyncBtn" onclick="syncGoogleCalendar()">📆 Sincronizar Google</button>
-      <button class="btn" onclick="saveData()">💾 Guardar</button>
-      <button class="btn" onclick="clearAll()">🧹 Limpiar</button>
-      <button class="btn" onclick="resetAll()">↺ Recargar</button>
+      <button class="btn owner-only" id="gsyncBtn" onclick="syncGoogleCalendar()" title="Sube tu horario local a Google, sobrescribiendo lo que haya ahí">📆 Sincronizar Google</button>
+      <button class="btn owner-only" id="gpullBtn" onclick="pullFromGoogleCalendar()" title="Trae el horario guardado en Google y reemplaza el local, para coordinar entre computadores">🔄 Traer de Google</button>
+      <button class="btn owner-only" onclick="saveData()">💾 Guardar</button>
+      <button class="btn owner-only" onclick="clearAll()">🧹 Limpiar</button>
+      <button class="btn owner-only" onclick="resetAll()">↺ Recargar</button>
+      <button class="btn" id="logoutBtn" onclick="logout()" style="display:none">🚪 Salir</button>
     </div>
   </div>
   <div id="pal-row">
     <span class="pal-lbl">Actividad →</span>
     <div id="palette"></div>
-    <button class="btn" id="editActsBtn" onclick="openActivityEditor()">✏️ Editar</button>
+    <button class="btn owner-only" id="editActsBtn" onclick="openActivityEditor()">✏️ Editar</button>
   </div>
 </div>
 
@@ -42,9 +47,42 @@
 <div id="dragTip"></div>
 <div id="toast"></div>
 
+<div id="lockScreen">
+  <div class="modal-box alert-box">
+    <div id="alertIcon">🔒</div>
+    <h2>Mi Horario Semanal</h2>
+    <p id="lockHint">Ingresa la contraseña para entrar</p>
+    <form id="lockForm">
+      <input type="password" id="lockPass" placeholder="Contraseña" autocomplete="current-password" required>
+      <button type="submit" class="btn btn-primary">Entrar</button>
+    </form>
+    <p id="lockError" class="lock-error"></p>
+  </div>
+</div>
+
+<div id="propModal">
+  <div class="modal-box">
+    <h2>Propuestas de invitados</h2>
+    <div id="propList"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closePropModal()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<div id="alertModal">
+  <div class="modal-box alert-box">
+    <div id="alertIcon">⏰</div>
+    <h2 id="alertTitle">Cambio de actividad</h2>
+    <p id="alertBody"></p>
+    <button class="btn btn-primary" id="alertAcceptBtn" onclick="acknowledgeActivityAlert()">Aceptar</button>
+  </div>
+</div>
+
 <div id="actModal">
   <div class="modal-box">
     <h2>Actividades</h2>
+    <input type="text" id="actSearch" placeholder="🔍 Buscar actividad…" autocomplete="off">
     <div id="actList"></div>
     <form id="newActForm">
       <input type="text" id="newActName" placeholder="Nueva actividad…" required>
@@ -59,6 +97,7 @@
   </div>
 </div>
 
+<script src="js/auth.js"></script>
 <script src="js/activities.js"></script>
 <script src="js/grid.js"></script>
 <script src="js/ics.js"></script>

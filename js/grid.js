@@ -69,13 +69,22 @@ function buildGrid(){
         e.preventDefault();
       });
       td.addEventListener('mouseenter', () => { if(drag) paintRange(d, h); });
-      td.addEventListener('dblclick', () => { data[d][h] = 'free'; applyCell(td, 'free'); });
+      td.addEventListener('dblclick', () => {
+        if(currentRole === 'guest'){ removeProposal(d, h); return; }
+        data[d][h] = 'free'; applyCell(td, 'free');
+      });
     }
   }
   document.addEventListener('mouseup', endDrag);
+  renderProposalOverlay();
 }
 
 function paint(d, h){
+  if(currentRole === 'guest'){
+    if(data[d][h] !== 'free'){ toast('Esa hora ya está ocupada — solo puedes proponer horario en celdas libres'); return; }
+    addProposal(d, h, sel);
+    return;
+  }
   data[d][h] = sel;
   applyCell(cells[d][h], sel);
 }
@@ -188,5 +197,119 @@ function updateNow(){
     line.className = 'now-line';
     line.style.top = (m / 60 * 100) + '%';
     td.appendChild(line);
+  }
+}
+
+/* PROPUESTAS DE INVITADOS
+   Un invitado solo puede "proponer" actividades sobre celdas libres — no
+   modifica data[] directamente. La propuesta se guarda aparte y el
+   propietario la aprueba o rechaza desde el panel 📩 Propuestas. */
+const PROPOSALS_KEY = 'hs_guest_proposals';
+
+function loadProposals(){
+  try{ const s = localStorage.getItem(PROPOSALS_KEY); if(s) return JSON.parse(s); }catch(e){}
+  return [];
+}
+function saveProposals(){
+  try{ localStorage.setItem(PROPOSALS_KEY, JSON.stringify(proposals)); }catch(e){}
+}
+let proposals = loadProposals();
+
+function addProposal(d, h, actId){
+  proposals = proposals.filter(p => !(p.d === d && p.h === h));
+  proposals.push({d, h, actId});
+  saveProposals();
+  renderProposalOverlay();
+  updateProposalBadges();
+}
+
+function removeProposal(d, h){
+  const before = proposals.length;
+  proposals = proposals.filter(p => !(p.d === d && p.h === h));
+  if(proposals.length !== before){
+    saveProposals();
+    renderProposalOverlay();
+    updateProposalBadges();
+  }
+}
+
+function applyProposalCell(td, actId){
+  const a = activityMap[actId] || activityMap.free;
+  td.style.background = a.bg;
+  td.style.color = a.fg;
+  td.textContent = (a.icon ? a.icon + ' ' : '') + a.label;
+  td.classList.add('proposal-cell');
+}
+
+function renderProposalOverlay(){
+  document.querySelectorAll('td.proposal-cell').forEach(td => {
+    td.classList.remove('proposal-cell');
+    const d = +td.dataset.d, h = +td.dataset.h;
+    applyCell(td, data[d][h]);
+  });
+  proposals.forEach(p => {
+    const td = cells[p.d]?.[p.h];
+    if(td && data[p.d][p.h] === 'free') applyProposalCell(td, p.actId);
+  });
+}
+
+function approveProposal(p){
+  if(data[p.d][p.h] === 'free'){
+    data[p.d][p.h] = p.actId;
+    applyCell(cells[p.d][p.h], p.actId);
+    saveData();
+  }
+  removeProposal(p.d, p.h);
+}
+
+function updateProposalBadges(){
+  const propBtn = document.getElementById('propBtn');
+  if(propBtn) propBtn.textContent = `📩 Propuestas (${proposals.length})`;
+}
+
+function openPropModal(){
+  renderPropList();
+  document.getElementById('propModal').classList.add('show');
+}
+function closePropModal(){
+  document.getElementById('propModal').classList.remove('show');
+}
+function renderPropList(){
+  const list = document.getElementById('propList');
+  list.innerHTML = '';
+  if(proposals.length === 0){
+    list.innerHTML = '<div class="act-empty">No hay propuestas pendientes.</div>';
+    return;
+  }
+  proposals.forEach(p => {
+    const a = activityMap[p.actId] || activityMap.free;
+    const row = document.createElement('div');
+    row.className = 'act-row';
+    const label = document.createElement('span');
+    label.style.cssText = 'flex:1;font-size:12px;';
+    label.textContent = `${days[p.d]} ${String(p.h).padStart(2, '0')}:00–${String(p.h + 1).padStart(2, '0')}:00 → ${(a.icon ? a.icon + ' ' : '') + a.label}`;
+    const ok = document.createElement('button');
+    ok.className = 'btn'; ok.textContent = '✓ Aprobar';
+    ok.onclick = () => { approveProposal(p); renderPropList(); };
+    const no = document.createElement('button');
+    no.className = 'btn'; no.textContent = '✕ Rechazar';
+    no.onclick = () => { removeProposal(p.d, p.h); renderPropList(); };
+    row.append(label, ok, no);
+    list.appendChild(row);
+  });
+}
+
+async function copyProposalsText(){
+  if(proposals.length === 0){ toast('No tienes propuestas pendientes'); return; }
+  const lines = proposals.map(p => {
+    const a = activityMap[p.actId] || activityMap.free;
+    return `${days[p.d]} ${String(p.h).padStart(2, '0')}:00–${String(p.h + 1).padStart(2, '0')}:00 → ${(a.icon ? a.icon + ' ' : '') + a.label}`;
+  });
+  const text = 'Propuestas de horario:\n' + lines.join('\n');
+  try{
+    await navigator.clipboard.writeText(text);
+    toast('📋 Copiado — envíaselo al propietario');
+  }catch(e){
+    toast('No se pudo copiar automáticamente');
   }
 }

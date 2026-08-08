@@ -6,20 +6,61 @@ let notifsEnabled = localStorage.getItem('hs_notifs') === '1';
 let lastSlotKey = null;
 let audioCtx = null;
 
+/* Pitido fuerte y pronunciado: 3 tonos ascendentes en vez de un solo beep
+   suave, con más ganancia, para que sea difícil no notarlo. */
 function beep(){
   try{
     if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     if(audioCtx.state === 'suspended') audioCtx.resume();
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.connect(gain); gain.connect(audioCtx.destination);
-    osc.frequency.value = 880;
-    gain.gain.setValueAtTime(0.001, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.18, audioCtx.currentTime + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
-    osc.start();
-    osc.stop(audioCtx.currentTime + 0.4);
+    const freqs = [740, 880, 1046];
+    freqs.forEach((freq, i) => {
+      const start = audioCtx.currentTime + i * 0.16;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'square';
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.001, start);
+      gain.gain.exponentialRampToValueAtTime(0.5, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.3);
+      osc.start(start);
+      osc.stop(start + 0.3);
+    });
   }catch(e){}
+}
+
+/* ALERTA BLOQUEANTE
+   Muestra un modal de pantalla completa que solo se cierra con el botón
+   "Aceptar", repitiendo el pitido y parpadeando el título de la pestaña
+   mientras tanto. Solo funciona con la pestaña abierta — un navegador no
+   puede tomar control del sistema fuera de eso. */
+const alertModal = document.getElementById('alertModal');
+const alertBody = document.getElementById('alertBody');
+const alertAcceptBtn = document.getElementById('alertAcceptBtn');
+const ORIG_TITLE = document.title;
+let alertRepeatTimer = null;
+let titleFlashTimer = null;
+
+function showBlockingAlert(label){
+  alertBody.textContent = label;
+  alertModal.classList.add('show');
+  beep();
+  clearInterval(alertRepeatTimer);
+  alertRepeatTimer = setInterval(beep, 2200);
+  clearInterval(titleFlashTimer);
+  let on = false;
+  titleFlashTimer = setInterval(() => {
+    document.title = (on = !on) ? '⏰ ¡Cambio de actividad!' : ORIG_TITLE;
+  }, 1000);
+  window.focus();
+  setTimeout(() => alertAcceptBtn.focus(), 0);
+}
+
+function acknowledgeActivityAlert(){
+  alertModal.classList.remove('show');
+  clearInterval(alertRepeatTimer);
+  clearInterval(titleFlashTimer);
+  document.title = ORIG_TITLE;
 }
 
 function updateNotifBtn(){
@@ -74,5 +115,5 @@ function checkActivityChange(){
   if(Notification.permission === 'granted'){
     new Notification('Cambio de actividad', {body: label, tag: 'hs-activity'});
   }
-  beep();
+  showBlockingAlert(label);
 }

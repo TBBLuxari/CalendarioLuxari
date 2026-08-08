@@ -40,20 +40,33 @@ function renderPalette(){
 /* EDITOR DE ACTIVIDADES */
 const modal = document.getElementById('actModal');
 const actList = document.getElementById('actList');
+const actSearch = document.getElementById('actSearch');
 
 function openActivityEditor(){
+  actSearch.value = '';
   renderActList();
   modal.classList.add('show');
+  setTimeout(() => actSearch.focus(), 0);
 }
 function closeActivityEditor(){
   modal.classList.remove('show');
   renderPalette();
   renderAll();
 }
+actSearch.addEventListener('input', () => renderActList());
 
 function renderActList(){
   actList.innerHTML = '';
-  activities.forEach(a => {
+  const q = actSearch.value.trim().toLowerCase();
+  const filtered = q ? activities.filter(a => a.label.toLowerCase().includes(q)) : activities;
+  if(filtered.length === 0){
+    const empty = document.createElement('div');
+    empty.className = 'act-empty';
+    empty.textContent = 'No hay actividades que coincidan con la búsqueda.';
+    actList.appendChild(empty);
+    return;
+  }
+  filtered.forEach(a => {
     const row = document.createElement('div');
     row.className = 'act-row';
 
@@ -127,6 +140,7 @@ function resize(){
 /* INICIO */
 function init(){
   applyTheme(localStorage.getItem('hs_theme') || (matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light'));
+  applyRolePermissions();
   buildGrid();
   renderPalette();
   initTouch();

@@ -78,6 +78,9 @@ td.sc .now-line{position:absolute;left:0;right:0;height:2px;background:var(--now
 #actModal.show{display:flex;}
 .modal-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;max-width:480px;width:100%;max-height:80vh;overflow:auto;}
 .modal-box h2{font-size:14px;margin-bottom:10px;}
+#actSearch{width:100%;font:inherit;font-size:12px;padding:6px 8px;margin-bottom:10px;border-radius:6px;border:1px solid var(--btn-border);background:var(--btn-bg);color:var(--text);}
+#actList{max-height:min(340px,45vh);overflow-y:auto;padding-right:2px;}
+#actList .act-empty{font-size:11px;color:var(--text2);padding:8px 2px;}
 .act-row{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
 .act-row .act-name{flex:1;min-width:0;font:inherit;font-size:12px;padding:5px 7px;border-radius:6px;border:1px solid var(--btn-border);background:var(--btn-bg);color:var(--text);}
 .act-row .act-icon{width:40px;flex:none;font:inherit;font-size:12px;padding:5px 4px;text-align:center;border-radius:6px;border:1px solid var(--btn-border);background:var(--btn-bg);color:var(--text);}
@@ -87,3 +90,35 @@ td.sc .now-line{position:absolute;left:0;right:0;height:2px;background:var(--now
 #newActForm input[type=text]{flex:1;min-width:100px;font:inherit;font-size:12px;padding:5px 7px;border-radius:6px;border:1px solid var(--btn-border);background:var(--btn-bg);color:var(--text);}
 #newActForm input#newActIcon{width:44px;flex:none;text-align:center;}
 .modal-actions{display:flex;justify-content:flex-end;margin-top:12px;}
+
+/* ALERTA BLOQUEANTE DE CAMBIO DE ACTIVIDAD
+   Ocupa toda la pantalla y no se puede cerrar clicando afuera: la única
+   salida es el botón "Aceptar". Es el máximo nivel de "bloqueo" posible
+   en un navegador (no hay forma de tomar control del sistema operativo). */
+#alertModal{position:fixed;inset:0;background:rgba(0,0,0,.72);display:none;align-items:center;justify-content:center;z-index:5000;padding:16px;}
+#alertModal.show{display:flex;animation:alertFlash .5s ease-in-out infinite alternate;}
+@keyframes alertFlash{from{background:rgba(0,0,0,.72);}to{background:rgba(224,69,60,.55);}}
+.alert-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px 24px;max-width:360px;width:100%;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.35);}
+#alertIcon{font-size:40px;line-height:1;margin-bottom:8px;}
+.alert-box h2{font-size:16px;margin-bottom:8px;}
+#alertBody{font-size:14px;color:var(--text2);margin-bottom:18px;}
+.btn-primary{width:100%;padding:10px;font-size:13px;font-weight:700;background:var(--now);color:#fff;border-color:var(--now);}
+.btn-primary:hover{filter:brightness(1.08);}
+
+/* CANDADO DE ACCESO */
+#lockScreen{position:fixed;inset:0;background:var(--bg);display:none;align-items:center;justify-content:center;z-index:6000;padding:16px;}
+body.locked #lockScreen{display:flex;}
+body.locked #topbar,body.locked #grid{visibility:hidden;}
+#lockScreen #lockHint{font-size:13px;color:var(--text2);margin-bottom:16px;}
+#lockForm{display:flex;flex-direction:column;gap:10px;}
+#lockForm input{font:inherit;font-size:13px;padding:9px 10px;border-radius:8px;border:1px solid var(--btn-border);background:var(--btn-bg);color:var(--text);text-align:center;}
+.lock-error{color:var(--now);font-size:12px;margin-top:10px;min-height:14px;}
+
+/* ROLES: oculta acciones de propietario a invitados y viceversa */
+body.role-guest .owner-only{display:none !important;}
+body:not(.role-guest) .guest-only{display:none !important;}
+#propBtn,#logoutBtn{margin-left:4px;}
+
+/* Celdas con una propuesta de invitado pendiente de aprobación: borde
+   punteado para diferenciarlas de una celda ya confirmada. */
+td.sc.proposal-cell{outline:2px dashed var(--now);outline-offset:-2px;}
