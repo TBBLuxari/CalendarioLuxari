@@ -34,7 +34,24 @@ app.use((err, req, res, next) => {
 
 const port = Number(process.env.PORT) || 3000;
 
-initDb()
+// Una base de datos remota recién creada (Turso) a veces tarda unos segundos
+// en quedar lista para recibir consultas — sin reintento, el primer arranque
+// justo después de crearla puede fallar con un 400 aunque las credenciales
+// sean correctas. Reintentamos antes de rendirnos.
+async function initDbWithRetry(attempts = 5, delayMs = 2000){
+  for(let i = 1; i <= attempts; i++){
+    try{
+      await initDb();
+      return;
+    }catch(err){
+      if(i === attempts) throw err;
+      console.warn(`No se pudo inicializar la base de datos (intento ${i}/${attempts}), reintentando en ${delayMs}ms…`, err.message);
+      await new Promise(r => setTimeout(r, delayMs));
+    }
+  }
+}
+
+initDbWithRetry()
   .then(() => {
     app.listen(port, () => console.log(`Mi Horario Semanal → http://localhost:${port}`));
   })
