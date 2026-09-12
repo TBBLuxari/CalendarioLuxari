@@ -8,16 +8,23 @@ const bcrypt = require('bcryptjs');
 const { createClient } = require('@libsql/client');
 const { DEFAULT_SCHEDULE, DEFAULT_ACTIVITIES } = require('./seedDefaults');
 
-const url = process.env.DATABASE_URL || 'file:./server/data/local.db';
+// .trim() por si el valor llegó con un espacio/salto de línea de más al
+// pegarlo en el panel de variables de entorno (un error muy fácil de cometer
+// y que produce el mismo 400 genérico que unas credenciales incorrectas).
+const url = (process.env.DATABASE_URL || 'file:./server/data/local.db').trim();
+const authToken = process.env.DATABASE_AUTH_TOKEN ? process.env.DATABASE_AUTH_TOKEN.trim() : undefined;
+
 if(url.startsWith('file:')){
   const filePath = url.slice('file:'.length);
   fs.mkdirSync(path.dirname(path.resolve(filePath)), { recursive: true });
 }
 
-const db = createClient({
-  url,
-  authToken: process.env.DATABASE_AUTH_TOKEN || undefined,
-});
+// No es sensible: es solo el host de la base, ver README. El token nunca se
+// imprime completo, solo su longitud, para poder detectar a simple vista si
+// llegó vacío/recortado sin exponerlo en los logs.
+console.log(`DB: url=${url} authToken=${authToken ? `presente (${authToken.length} caracteres)` : 'AUSENTE'}`);
+
+const db = createClient({ url, authToken });
 
 async function applySchema(){
   const sql = fs.readFileSync(path.join(__dirname, '..', 'migrations', '0001_init.sql'), 'utf8');
