@@ -25,24 +25,62 @@ function toggleTheme(){
   applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
 }
 
-/* PALETA */
-const pal = document.getElementById('palette');
-function renderPalette(){
-  pal.innerHTML = '';
-  activities.forEach(a => {
-    const b = document.createElement('button');
-    b.className = 'ab' + (a.id === sel ? ' on' : '');
-    b.style.cssText = `background:${a.bg};color:${a.fg}`;
-    b.textContent = (a.icon ? a.icon + ' ' : '') + a.label;
-    b.dataset.id = a.id;
-    b.onclick = () => {
-      sel = a.id;
-      document.querySelectorAll('.ab').forEach(x => x.classList.remove('on'));
-      b.classList.add('on');
-    };
-    pal.appendChild(b);
-  });
+/* MENÚS DESPLEGABLES (elegir actividad / ⚙️ / 🎨)
+   Un solo mecanismo para los tres: togglear muestra ese panel y cierra los
+   demás; un click fuera de cualquier .dropdown los cierra todos. */
+function toggleDropdown(panelId){
+  const panel = document.getElementById(panelId);
+  const willOpen = !panel.classList.contains('show');
+  document.querySelectorAll('.dropdown-panel.show').forEach(p => p.classList.remove('show'));
+  if(willOpen){
+    panel.classList.add('show');
+    if(panelId === 'stylePanel') applyStyleOverrides();
+  }
 }
+document.addEventListener('click', e => {
+  if(!e.target.closest('.dropdown')) document.querySelectorAll('.dropdown-panel.show').forEach(p => p.classList.remove('show'));
+});
+
+/* SELECTOR DE ACTIVIDAD (con qué "pintar")
+   Antes era una fila de píldoras que se salía de la pantalla al agregar
+   muchas actividades; ahora es un botón compacto con la actividad actual que
+   despliega una lista con scroll para elegir — y un atajo directo al editor
+   completo para agregar/renombrar/borrar. */
+const actPickerSearch = document.getElementById('actPickerSearch');
+
+function renderActPicker(){
+  const list = document.getElementById('actPickerList');
+  list.innerHTML = '';
+  const q = actPickerSearch.value.trim().toLowerCase();
+  const filtered = q ? activities.filter(a => a.label.toLowerCase().includes(q)) : activities;
+  if(filtered.length === 0){
+    list.innerHTML = '<div class="act-empty">Sin resultados.</div>';
+  }
+  filtered.forEach(a => {
+    const row = document.createElement('div');
+    row.className = 'act-pick-row' + (a.id === sel ? ' on' : '');
+    const sw = document.createElement('span');
+    sw.className = 'act-pick-swatch';
+    sw.style.background = a.bg;
+    const label = document.createElement('span');
+    label.textContent = (a.icon ? a.icon + ' ' : '') + a.label;
+    row.append(sw, label);
+    row.onclick = () => selectActivity(a.id);
+    list.appendChild(row);
+  });
+  updateActPickerButton();
+}
+function selectActivity(id){
+  sel = id;
+  renderActPicker();
+  document.getElementById('actPickerPanel').classList.remove('show');
+}
+function updateActPickerButton(){
+  const a = activityMap[sel] || activityMap.free;
+  document.getElementById('actPickerSwatch').style.background = a.bg;
+  document.getElementById('actPickerLabel').textContent = (a.icon ? a.icon + ' ' : '') + a.label;
+}
+actPickerSearch.addEventListener('input', () => renderActPicker());
 
 /* EDITOR DE ACTIVIDADES */
 const modal = document.getElementById('actModal');
@@ -57,7 +95,7 @@ function openActivityEditor(){
 }
 function closeActivityEditor(){
   modal.classList.remove('show');
-  renderPalette();
+  renderActPicker();
   renderAll();
 }
 actSearch.addEventListener('input', () => renderActList());
@@ -152,6 +190,43 @@ function resize(){
   document.querySelectorAll('td.sc').forEach(td => { td.style.fontSize = fs + 'px'; });
 }
 
+/* COLORES PERSONALIZABLES (menú 🎨)
+   Preferencia puramente visual y local del dispositivo (como el tema), así
+   que vive en localStorage, no en el servidor: cada quien puede ajustar sus
+   propios colores sin afectar a los demás roles. */
+const STYLE_VARS = [
+  { key: 'gridLine', cssVar: '--grid-line', inputId: 'styleGridLine' },
+  { key: 'hourColor', cssVar: '--hour-color', inputId: 'styleHourColor' },
+  { key: 'nowMarker', cssVar: '--now-marker', inputId: 'styleNowMarker' },
+];
+const STYLE_KEY = 'hs_style_overrides';
+
+function loadStyleOverrides(){
+  try{ return JSON.parse(localStorage.getItem(STYLE_KEY) || '{}'); }catch(e){ return {}; }
+}
+function applyStyleOverrides(){
+  const saved = loadStyleOverrides();
+  STYLE_VARS.forEach(v => {
+    if(saved[v.key]) document.documentElement.style.setProperty(v.cssVar, saved[v.key]);
+    const input = document.getElementById(v.inputId);
+    if(!input) return;
+    const current = getComputedStyle(document.documentElement).getPropertyValue(v.cssVar).trim();
+    input.value = toHex(saved[v.key] || current);
+    input.oninput = () => {
+      const next = loadStyleOverrides();
+      next[v.key] = input.value;
+      localStorage.setItem(STYLE_KEY, JSON.stringify(next));
+      document.documentElement.style.setProperty(v.cssVar, input.value);
+    };
+  });
+}
+function resetStyleOverrides(){
+  localStorage.removeItem(STYLE_KEY);
+  STYLE_VARS.forEach(v => document.documentElement.style.removeProperty(v.cssVar));
+  applyStyleOverrides();
+  toast('↺ Colores restablecidos');
+}
+
 /* ARRANQUE POR ROL
    El rol "booking" nunca ve el horario (privacidad: solo ve huecos libres,
    no qué actividad hay en cada uno). Owner/guest sí necesitan el horario, las
@@ -167,7 +242,7 @@ async function startForRole(role){
   await Promise.all(tasks);
 
   buildGrid();
-  renderPalette();
+  renderActPicker();
   initTouch();
   updateNow();
   setInterval(updateNow, 60000);
@@ -196,6 +271,7 @@ async function onLoggedIn(){
 
 async function boot(){
   applyTheme(localStorage.getItem('hs_theme') || (matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light'));
+  applyStyleOverrides();
 
   try{
     const me = await api('/auth/me');

@@ -13,28 +13,50 @@
 
 <div id="topbar">
   <div id="row1">
-    <span class="title">🗓 Mi Horario Semanal</span>
+    <span class="role-badge" id="roleBadge"></span>
     <div class="ctrls">
-      <span class="hint">Clic · Arrastra · 2×clic borra</span>
-      <span class="hint" id="roleBadge"></span>
-      <button class="btn owner-only" id="propBtn" onclick="openPropModal()">📩 Propuestas (0)</button>
-      <button class="btn owner-only" id="eventsBtn" onclick="openEventsModal()">🗓️ Eventos (0)</button>
-      <button class="btn guest-only" onclick="copyProposalsText()">📋 Copiar propuestas</button>
+      <div class="dropdown" id="actPickerDD">
+        <button class="btn act-picker-btn" onclick="toggleDropdown('actPickerPanel')">
+          <span class="act-pick-swatch" id="actPickerSwatch"></span>
+          <span id="actPickerLabel">Actividad</span> ▾
+        </button>
+        <div class="dropdown-panel" id="actPickerPanel">
+          <input type="text" id="actPickerSearch" placeholder="🔍 Buscar actividad…" autocomplete="off">
+          <div id="actPickerList"></div>
+          <button class="btn owner-only" id="editActsBtn" onclick="openActivityEditor()">✏️ Editar actividades</button>
+        </div>
+      </div>
+
       <button class="btn" id="tbtn" onclick="toggleTheme()">🌙</button>
-      <button class="btn" id="notifBtn" onclick="toggleNotifs()">🔕 Avisos</button>
-      <button class="btn" onclick="exportICS()">📅 Exportar .ics</button>
-      <button class="btn owner-only" id="gsyncBtn" onclick="syncGoogleCalendar()" title="Sube tu horario y eventos a Google, sobrescribiendo lo que haya ahí">📆 Sincronizar Google</button>
-      <button class="btn owner-only" id="gpullBtn" onclick="pullFromGoogleCalendar()" title="Trae el horario guardado en Google y reemplaza el local, para coordinar entre computadores">🔄 Traer de Google</button>
-      <button class="btn owner-only" onclick="saveData()">💾 Guardar</button>
-      <button class="btn owner-only" onclick="clearAll()">🧹 Limpiar</button>
-      <button class="btn owner-only" onclick="resetAll()" title="Descarta los cambios sin guardar y recarga lo último guardado en el servidor">↺ Recargar</button>
+
+      <div class="dropdown" id="settingsDD">
+        <button class="btn" onclick="toggleDropdown('settingsPanel')">⚙️</button>
+        <div class="dropdown-panel dropdown-panel-menu" id="settingsPanel">
+          <button class="btn owner-only" id="propBtn" onclick="openPropModal()">📩 Propuestas (0)</button>
+          <button class="btn owner-only" id="eventsBtn" onclick="openEventsModal()">🗓️ Eventos (0)</button>
+          <button class="btn guest-only" onclick="copyProposalsText()">📋 Copiar propuestas</button>
+          <button class="btn" id="notifBtn" onclick="toggleNotifs()">🔕 Avisos</button>
+          <button class="btn" onclick="exportICS()">📅 Exportar .ics</button>
+          <button class="btn owner-only" id="gsyncBtn" onclick="syncGoogleCalendar()" title="Sube tu horario y eventos a Google, sobrescribiendo lo que haya ahí">📆 Sincronizar Google</button>
+          <button class="btn owner-only" id="gpullBtn" onclick="pullFromGoogleCalendar()" title="Trae el horario guardado en Google y reemplaza el local, para coordinar entre computadores">🔄 Traer de Google</button>
+          <button class="btn owner-only" onclick="saveData()">💾 Guardar</button>
+          <button class="btn owner-only" onclick="clearAll()">🧹 Limpiar</button>
+          <button class="btn owner-only" onclick="resetAll()" title="Descarta los cambios sin guardar y recarga lo último guardado en el servidor">↺ Recargar</button>
+        </div>
+      </div>
+
+      <div class="dropdown" id="styleDD">
+        <button class="btn" onclick="toggleDropdown('stylePanel')">🎨</button>
+        <div class="dropdown-panel dropdown-panel-menu" id="stylePanel">
+          <label class="style-row">Líneas de la cuadrícula <input type="color" id="styleGridLine"></label>
+          <label class="style-row">Color de la hora <input type="color" id="styleHourColor"></label>
+          <label class="style-row">Marcador de "ahora" <input type="color" id="styleNowMarker"></label>
+          <button class="btn" onclick="resetStyleOverrides()">↺ Restablecer colores</button>
+        </div>
+      </div>
+
       <button class="btn" id="logoutBtn" onclick="logout()" style="display:none">🚪 Salir</button>
     </div>
-  </div>
-  <div id="pal-row">
-    <span class="pal-lbl">Actividad →</span>
-    <div id="palette"></div>
-    <button class="btn owner-only" id="editActsBtn" onclick="openActivityEditor()">✏️ Editar</button>
   </div>
 </div>
 

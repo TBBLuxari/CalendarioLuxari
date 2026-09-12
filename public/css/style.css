@@ -7,6 +7,10 @@
   --btn-bg:#FFFFFF;--btn-hover:#F0F0EC;--btn-border:#DDDDD8;
   --now:#E0453C;
   --cell-h:30px;--time-w:46px;--hdr-h:0px;
+  /* Personalizables desde el menú 🎨 (ver STYLE_VARS en app.js). Separados de
+     --border/--now/--text3 a propósito: así tocarlos no cambia también el
+     borde de botones/modales ni el acento de los botones destacados. */
+  --grid-line:#E0E0DA;--hour-color:#C8C8C2;--now-marker:#E0453C;
 }
 [data-theme="dark"]{
   --bg:#141414;--surface:#1E1E1C;--border:#2C2C28;
@@ -14,66 +18,79 @@
   --time-bg:#181816;--time-border:#323230;
   --btn-bg:#262622;--btn-hover:#303030;--btn-border:#3A3A36;
   --now:#FF6B5E;
+  --grid-line:#2C2C28;--hour-color:#3E3E3A;--now-marker:#FF6B5E;
 }
 
 html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans-serif;font-size:13px;}
 
 /* TOP BAR */
-#topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:8px 12px 6px;display:flex;flex-direction:column;gap:6px;}
+#topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:8px 12px;display:flex;flex-direction:column;gap:6px;}
 #row1{display:flex;align-items:center;justify-content:space-between;gap:8px;}
-.title{font-size:13px;font-weight:600;letter-spacing:-.01em;}
-.ctrls{display:flex;gap:4px;align-items:center;}
+.ctrls{display:flex;gap:4px;align-items:center;flex-wrap:wrap;justify-content:flex-end;}
 .btn{font:500 11px/1 inherit;padding:5px 9px;border-radius:7px;border:1px solid var(--btn-border);background:var(--btn-bg);color:var(--text);cursor:pointer;white-space:nowrap;transition:background .12s;}
 .btn:hover,.btn:active{background:var(--btn-hover);}
 .btn.on{border-color:var(--now);color:var(--now);}
 .btn:disabled{opacity:.6;cursor:wait;}
+.role-badge{font-size:9px;color:var(--text3);white-space:nowrap;flex-shrink:0;}
 .hint{font-size:9px;color:var(--text3);}
-@media(max-width:500px){.hint{display:none;}}
 
-/* PALETTE */
-#pal-row{display:flex;align-items:center;gap:6px;overflow-x:auto;scrollbar-width:none;}
-#pal-row::-webkit-scrollbar{display:none;}
-.pal-lbl{font-size:9px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text2);white-space:nowrap;flex-shrink:0;}
-#palette{display:flex;gap:4px;flex-shrink:0;}
-#editActsBtn{flex-shrink:0;margin-left:auto;}
-.ab{font:500 10px/1 inherit;padding:4px 8px;border-radius:20px;border:2px solid transparent;cursor:pointer;user-select:none;white-space:nowrap;transition:filter .1s,border-color .1s,box-shadow .1s;touch-action:manipulation;}
-.ab:hover{filter:brightness(.88);}
-.ab.on{border-color:var(--text);box-shadow:0 0 0 1px var(--text);}
+/* MENÚS DESPLEGABLES (elegir actividad, ⚙️ acciones, 🎨 colores): mismo
+   patrón para los tres — un botón dentro de .dropdown despliega el
+   .dropdown-panel hermano; toggleDropdown() en app.js cierra los demás y un
+   click fuera de .dropdown los cierra todos. */
+.dropdown{position:relative;}
+.dropdown-panel{display:none;position:absolute;top:calc(100% + 6px);right:0;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.18);padding:10px;z-index:100;max-width:min(320px,90vw);}
+.dropdown-panel.show{display:block;}
+
+.act-picker-btn{display:inline-flex;align-items:center;gap:6px;}
+.act-pick-swatch{width:12px;height:12px;border-radius:4px;flex:none;display:inline-block;}
+#actPickerPanel{width:260px;}
+#actPickerSearch{width:100%;font:inherit;font-size:12px;padding:6px 8px;margin-bottom:8px;border-radius:6px;border:1px solid var(--btn-border);background:var(--btn-bg);color:var(--text);}
+#actPickerList{max-height:min(320px,50vh);overflow-y:auto;display:flex;flex-direction:column;gap:2px;margin-bottom:8px;}
+.act-pick-row{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:7px;cursor:pointer;font-size:12px;user-select:none;}
+.act-pick-row:hover{background:var(--btn-hover);}
+.act-pick-row.on{background:var(--btn-hover);font-weight:600;}
+#editActsBtn{width:100%;}
+
+.dropdown-panel-menu{display:none;flex-direction:column;gap:6px;min-width:200px;}
+.dropdown-panel-menu.show{display:flex;}
+.style-row{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12px;}
+.style-row input[type=color]{width:32px;height:24px;padding:0;border:1px solid var(--btn-border);border-radius:6px;background:none;cursor:pointer;}
 
 /* GRID
-   La cuadrícula tiene un ancho mínimo real (columna de horas + 7 días con un
-   ancho legible cada uno) en vez de "width:100%": así, en pantallas angostas,
-   la tabla mide más que el viewport y #grid (overflow:auto) sí tiene algo que
-   desplazar horizontalmente — antes la tabla se achicaba para caber siempre
-   en el contenedor y el scroll horizontal nunca se activaba. */
+   width:100% + min-width juntos: en pantalla ancha la tabla llena todo el
+   espacio disponible (las 7 columnas de día se reparten lo que sobre, ya que
+   solo la columna de horas tiene ancho fijo — table-layout:fixed reparte el
+   resto en partes iguales entre las columnas sin ancho propio). En pantalla
+   angosta, min-width gana sobre width:100% y la tabla desborda el contenedor,
+   así #grid (overflow:auto) sí tiene algo que desplazar horizontalmente. */
 :root{--day-w:92px;}
 @media(max-width:700px){:root{--day-w:78px;}}
 #grid{overflow:auto;height:calc(100vh - var(--hdr-h));-webkit-overflow-scrolling:touch;}
-table{table-layout:fixed;border-collapse:collapse;min-width:calc(var(--time-w) + var(--day-w) * 7);}
-th:not(.corner),td.sc{width:var(--day-w);min-width:var(--day-w);}
+table{table-layout:fixed;border-collapse:collapse;width:100%;min-width:calc(var(--time-w) + var(--day-w) * 7);}
 
-thead th{position:sticky;top:0;z-index:20;background:var(--surface);border:.5px solid var(--border);font-size:9px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--text2);padding:7px 2px;text-align:center;}
+thead th{position:sticky;top:0;z-index:20;background:var(--surface);border:.5px solid var(--grid-line);font-size:9px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--text2);padding:7px 2px;text-align:center;}
 th.corner{position:sticky;top:0;left:0;z-index:30;width:var(--time-w);background:var(--surface);}
-th.now-col{color:var(--now);}
+th.now-col{color:var(--now-marker);}
 
 /* La etiqueta de hora se ancla a la línea superior de la celda (estilo Google
    Calendar) para que quede claro que "11:00" marca el INICIO del bloque
    11:00–12:00, y no el centro de una franja llamada "11". La columna se
    queda fija (sticky) al scrollear los días horizontalmente, para que la
    hora nunca se pierda de vista. */
-td.tc{position:sticky;left:0;z-index:10;width:var(--time-w);min-width:var(--time-w);height:var(--cell-h);background:var(--time-bg);border:.5px solid var(--border);border-right:1.5px solid var(--time-border);}
+td.tc{position:sticky;left:0;z-index:10;width:var(--time-w);min-width:var(--time-w);height:var(--cell-h);background:var(--time-bg);border:.5px solid var(--grid-line);border-right:1.5px solid var(--time-border);}
 td.tc.h6{border-top:1.5px solid var(--time-border);}
-td.tc .tlabel{position:absolute;top:0;right:5px;transform:translateY(-50%);font-size:9px;color:var(--text3);background:var(--time-bg);padding:0 2px;line-height:1;white-space:nowrap;pointer-events:none;}
-td.tc.now-row .tlabel{color:var(--now);font-weight:700;}
+td.tc .tlabel{position:absolute;top:0;right:5px;transform:translateY(-50%);font-size:9px;color:var(--hour-color);background:var(--time-bg);padding:0 2px;line-height:1;white-space:nowrap;pointer-events:none;}
+td.tc.now-row .tlabel{color:var(--now-marker);font-weight:700;}
 
-td.sc{height:var(--cell-h);border:.5px solid var(--border);font-size:9px;font-weight:500;text-align:center;vertical-align:middle;cursor:crosshair;user-select:none;transition:filter .06s;padding:0 1px;touch-action:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;position:relative;}
+td.sc{height:var(--cell-h);border:.5px solid var(--grid-line);font-size:9px;font-weight:500;text-align:center;vertical-align:middle;cursor:crosshair;user-select:none;transition:filter .06s;padding:0 1px;touch-action:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;position:relative;}
 td.sc:hover{filter:brightness(.84);}
 td.sc.h6{border-top:1px solid rgba(128,128,128,.18);}
 
 /* Marcador de "ahora": resalta la celda del día/hora actuales y dibuja una
    línea a la altura exacta del minuto en curso, como en Google Calendar. */
-td.sc.now-cell{outline:2px solid var(--now);outline-offset:-2px;z-index:5;}
-td.sc .now-line{position:absolute;left:0;right:0;height:2px;background:var(--now);pointer-events:none;z-index:6;}
+td.sc.now-cell{outline:2px solid var(--now-marker);outline-offset:-2px;z-index:5;}
+td.sc .now-line{position:absolute;left:0;right:0;height:2px;background:var(--now-marker);pointer-events:none;z-index:6;}
 
 /* Aviso flotante mientras se arrastra: muestra el rango real de horas y la
    duración, para no confundir "cuántas celdas toqué" con "cuántas horas marqué". */

@@ -298,7 +298,7 @@ async function runPull(){
     data = newData;
     await replaceAllActivities(newActivities);
     await saveData();
-    renderPalette();
+    renderActPicker();
     renderAll();
     toast(`✓ Horario traído de Google (${blocksApplied} bloques)`);
   }catch(err){
