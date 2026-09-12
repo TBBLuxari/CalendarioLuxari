@@ -13,7 +13,11 @@
 
 <div id="topbar">
   <div id="row1">
-    <span class="role-badge" id="roleBadge"></span>
+    <div class="row1-side"></div>
+    <div class="row1-center">
+      <span class="role-badge" id="roleBadge"></span>
+      <span class="month-label" id="monthLabel"></span>
+    </div>
     <div class="ctrls">
       <div class="dropdown" id="actPickerDD">
         <button class="btn act-picker-btn" onclick="toggleDropdown('actPickerPanel')">
@@ -42,6 +46,17 @@
           <button class="btn owner-only" onclick="saveData()">💾 Guardar</button>
           <button class="btn owner-only" onclick="clearAll()">🧹 Limpiar</button>
           <button class="btn owner-only" onclick="resetAll()" title="Descarta los cambios sin guardar y recarga lo último guardado en el servidor">↺ Recargar</button>
+
+          <div class="settings-divider owner-only"></div>
+          <span class="modal-subtitle owner-only" style="margin:0">Reglas para invitados</span>
+          <div class="rules-row owner-only">
+            <label>Desde <select id="ruleStart"></select></label>
+            <label>Hasta <select id="ruleEnd"></select></label>
+          </div>
+          <label class="rules-max owner-only">Máx. horas pendientes a la vez
+            <input type="number" id="ruleMaxHours" min="1" max="168" placeholder="Sin límite">
+          </label>
+          <button class="btn owner-only" onclick="onSaveGuestRules()">💾 Guardar reglas</button>
         </div>
       </div>
 

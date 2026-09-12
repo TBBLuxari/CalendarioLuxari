@@ -23,16 +23,24 @@
 
 html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans-serif;font-size:13px;}
 
-/* TOP BAR */
-#topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:8px 12px;display:flex;flex-direction:column;gap:6px;}
-#row1{display:flex;align-items:center;justify-content:space-between;gap:8px;}
-.ctrls{display:flex;gap:4px;align-items:center;flex-wrap:wrap;justify-content:flex-end;}
+/* TOP BAR
+   row1 se reparte en 3: un lado vacío, un centro grande (rol + mes) y los
+   controles a la derecha. Los dos "flex:1" de los costados son un balance
+   aproximado (el centro no queda matemáticamente exacto porque .ctrls no
+   mide lo mismo que el lado vacío, pero visualmente queda bien centrado). */
+#topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:10px 12px;display:flex;flex-direction:column;gap:6px;}
+#row1{display:flex;align-items:center;gap:12px;}
+.row1-side{flex:1;}
+.row1-center{flex:2;display:flex;align-items:baseline;justify-content:center;gap:14px;flex-wrap:wrap;}
+.ctrls{flex:1;display:flex;gap:4px;align-items:center;flex-wrap:wrap;justify-content:flex-end;}
 .btn{font:500 11px/1 inherit;padding:5px 9px;border-radius:7px;border:1px solid var(--btn-border);background:var(--btn-bg);color:var(--text);cursor:pointer;white-space:nowrap;transition:background .12s;}
 .btn:hover,.btn:active{background:var(--btn-hover);}
 .btn.on{border-color:var(--now);color:var(--now);}
 .btn:disabled{opacity:.6;cursor:wait;}
-.role-badge{font-size:13px;font-weight:700;color:var(--now);white-space:nowrap;flex-shrink:0;padding:5px 14px;border-radius:20px;border:1.5px solid var(--now);background:var(--surface);}
+.role-badge{font-size:20px;font-weight:700;color:var(--now);white-space:nowrap;flex-shrink:0;padding:8px 20px;border-radius:24px;border:2px solid var(--now);background:var(--surface);}
+.month-label{font-size:20px;font-weight:600;color:var(--text);white-space:nowrap;text-transform:capitalize;}
 .hint{font-size:9px;color:var(--text3);}
+@media(max-width:700px){.role-badge{font-size:15px;padding:6px 14px;}.month-label{font-size:15px;}}
 
 /* MENÚS DESPLEGABLES (elegir actividad, ⚙️ acciones, 🎨 colores): mismo
    patrón para los tres — un botón dentro de .dropdown despliega el
@@ -56,6 +64,11 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .dropdown-panel-menu.show{display:flex;}
 .style-row{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12px;}
 .style-row input[type=color]{width:32px;height:24px;padding:0;border:1px solid var(--btn-border);border-radius:6px;background:none;cursor:pointer;}
+
+.settings-divider{border-top:1px solid var(--border);margin:4px 0;}
+.rules-row{display:flex;gap:6px;}
+.rules-row label,.rules-max{flex:1;display:flex;flex-direction:column;gap:3px;font-size:10px;color:var(--text2);}
+.rules-row select,.rules-max input{font:inherit;font-size:12px;padding:5px 6px;border-radius:6px;border:1px solid var(--btn-border);background:var(--btn-bg);color:var(--text);}
 
 /* GRID
    width:100% + min-width juntos: en pantalla ancha la tabla llena todo el

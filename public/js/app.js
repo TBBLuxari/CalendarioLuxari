@@ -35,6 +35,38 @@ function toggleDropdown(panelId){
   if(willOpen){
     panel.classList.add('show');
     if(panelId === 'stylePanel') applyStyleOverrides();
+    if(panelId === 'settingsPanel') populateGuestRulesForm();
+  }
+}
+
+/* REGLAS DE INVITADO (dentro de ⚙️, solo propietario)
+   Limita en qué franja horaria puede proponer un invitado y cuántas horas
+   puede tener pendientes de aprobación a la vez, para que no llene el
+   horario completo de una sentada. Se aplica también en el servidor (ver
+   server/src/routes/proposals.routes.js) — esto es solo la UI. */
+function populateGuestRulesForm(){
+  const startSel = document.getElementById('ruleStart');
+  const endSel = document.getElementById('ruleEnd');
+  if(!startSel || !endSel) return;
+  if(!startSel.options.length){
+    for(let h = 0; h < 24; h++) startSel.add(new Option(String(h).padStart(2, '0') + ':00', h));
+    for(let h = 1; h <= 24; h++) endSel.add(new Option(String(h).padStart(2, '0') + ':00', h));
+  }
+  startSel.value = guestRules.startHour;
+  endSel.value = guestRules.endHour;
+  document.getElementById('ruleMaxHours').value = guestRules.maxHours ?? '';
+}
+
+async function onSaveGuestRules(){
+  const startHour = Number(document.getElementById('ruleStart').value);
+  const endHour = Number(document.getElementById('ruleEnd').value);
+  const maxRaw = document.getElementById('ruleMaxHours').value.trim();
+  const maxHours = maxRaw === '' ? null : Number(maxRaw);
+  if(endHour <= startHour){ toast('La hora de fin debe ser mayor que la de inicio'); return; }
+  try{
+    await saveGuestRules(startHour, endHour, maxHours);
+  }catch(e){
+    toast('❌ ' + e.message);
   }
 }
 document.addEventListener('click', e => {
@@ -237,7 +269,7 @@ async function startForRole(role){
     return;
   }
 
-  const tasks = [fetchActivities(), fetchSchedule(), fetchProposals()];
+  const tasks = [fetchActivities(), fetchSchedule(), fetchProposals(), fetchGuestRules()];
   if(role === 'owner') tasks.push(fetchEvents(), fetchBookingRequests());
   await Promise.all(tasks);
 

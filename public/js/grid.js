@@ -37,6 +37,20 @@ function updateHeaderDates(){
     const d = new Date(monday); d.setDate(monday.getDate() + i);
     dateSpan.textContent = d.getDate();
   }
+  updateMonthLabel(monday);
+}
+
+// Si la semana visible cruza de mes (p. ej. lunes 29 a domingo 5), se
+// muestran los dos: "Septiembre / Octubre 2026".
+function updateMonthLabel(monday){
+  const label = document.getElementById('monthLabel');
+  if(!label) return;
+  const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
+  const fmt = m => m.toLocaleDateString('es-ES', { month: 'long' }).replace(/^./, c => c.toUpperCase());
+  const text = monday.getMonth() === sunday.getMonth()
+    ? `${fmt(monday)} ${monday.getFullYear()}`
+    : `${fmt(monday)} / ${fmt(sunday)} ${sunday.getFullYear()}`;
+  label.textContent = text;
 }
 
 function buildGrid(){
@@ -96,6 +110,10 @@ function buildGrid(){
 
 function paint(d, h){
   if(currentRole === 'guest'){
+    if(h < guestRules.startHour || h >= guestRules.endHour){
+      toast(`El propietario solo permite proponer entre las ${String(guestRules.startHour).padStart(2,'0')}:00 y las ${String(guestRules.endHour).padStart(2,'0')}:00`);
+      return;
+    }
     if(data[d][h] !== 'free'){ toast('Esa hora ya está ocupada — solo puedes proponer horario en celdas libres'); return; }
     addProposal(d, h, sel);
     return;
@@ -221,11 +239,21 @@ function updateNow(){
    modifica el horario directamente. El propietario aprueba o rechaza desde
    el panel 📩 Propuestas. Todo vive ahora en el backend (tabla proposals). */
 let proposals = [];
+let guestRules = { startHour: 0, endHour: 24, maxHours: null };
 
 async function fetchProposals(){
   proposals = await api('/proposals');
   renderProposalOverlay();
   updateProposalBadges();
+}
+
+async function fetchGuestRules(){
+  guestRules = await api('/proposals/rules');
+}
+
+async function saveGuestRules(startHour, endHour, maxHours){
+  guestRules = await api('/proposals/rules', { method: 'PUT', body: { startHour, endHour, maxHours } });
+  toast('✓ Reglas de invitado guardadas');
 }
 
 async function addProposal(d, h, actId){
