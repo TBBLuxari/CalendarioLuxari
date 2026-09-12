@@ -31,7 +31,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .btn:hover,.btn:active{background:var(--btn-hover);}
 .btn.on{border-color:var(--now);color:var(--now);}
 .btn:disabled{opacity:.6;cursor:wait;}
-.role-badge{font-size:9px;color:var(--text3);white-space:nowrap;flex-shrink:0;}
+.role-badge{font-size:13px;font-weight:700;color:var(--now);white-space:nowrap;flex-shrink:0;padding:5px 14px;border-radius:20px;border:1.5px solid var(--now);background:var(--surface);}
 .hint{font-size:9px;color:var(--text3);}
 
 /* MENÚS DESPLEGABLES (elegir actividad, ⚙️ acciones, 🎨 colores): mismo
@@ -72,6 +72,9 @@ table{table-layout:fixed;border-collapse:collapse;width:100%;min-width:calc(var(
 thead th{position:sticky;top:0;z-index:20;background:var(--surface);border:.5px solid var(--grid-line);font-size:9px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--text2);padding:7px 2px;text-align:center;}
 th.corner{position:sticky;top:0;left:0;z-index:30;width:var(--time-w);background:var(--surface);}
 th.now-col{color:var(--now-marker);}
+.day-name{display:block;}
+.day-date{display:block;font-size:11px;font-weight:400;letter-spacing:0;text-transform:none;color:var(--text2);margin-top:1px;}
+th.now-col .day-date{color:var(--now-marker);font-weight:700;}
 
 /* La etiqueta de hora se ancla a la línea superior de la celda (estilo Google
    Calendar) para que quede claro que "11:00" marca el INICIO del bloque
@@ -150,8 +153,11 @@ body:not(.role-guest) .guest-only{display:none !important;}
 #propBtn,#logoutBtn{margin-left:4px;}
 
 /* Celdas con una propuesta de invitado pendiente de aprobación: borde
-   punteado para diferenciarlas de una celda ya confirmada. */
+   punteado + un relojito, para que no se confunda con una celda ya
+   confirmada — no forma parte del horario real hasta que se apruebe en
+   ⚙️ → Propuestas. */
 td.sc.proposal-cell{outline:2px dashed var(--now);outline-offset:-2px;}
+td.sc.proposal-cell::after{content:'🕓';position:absolute;top:0;right:1px;font-size:8px;line-height:1;}
 
 /* ROL "booking": no ve el horario en absoluto (privacidad), solo la vista
    dedicada de disponibilidad + solicitud de cita. */

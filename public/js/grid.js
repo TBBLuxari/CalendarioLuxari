@@ -18,15 +18,42 @@ async function fetchSchedule(){
   data = await api('/schedule');
 }
 
+// Lunes de la semana actual, para mostrar "Lunes 15", "Martes 16"… en el
+// encabezado (igual que la vista semanal de Google Calendar) — el horario en
+// sí sigue siendo la misma plantilla recurrente, esto es solo la etiqueta.
+function mondayOfCurrentWeek(){
+  const now = new Date();
+  const idx = (now.getDay() + 6) % 7; // 0=lunes … 6=domingo
+  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - idx);
+  monday.setHours(0, 0, 0, 0);
+  return monday;
+}
+function updateHeaderDates(){
+  const monday = mondayOfCurrentWeek();
+  for(let i = 0; i < 7; i++){
+    const th = hrow.children[i + 1];
+    const dateSpan = th?.querySelector('.day-date');
+    if(!dateSpan) continue;
+    const d = new Date(monday); d.setDate(monday.getDate() + i);
+    dateSpan.textContent = d.getDate();
+  }
+}
+
 function buildGrid(){
   hrow.innerHTML = '';
   const corner = document.createElement('th'); corner.className = 'corner'; hrow.appendChild(corner);
   days.forEach((d, i) => {
     const th = document.createElement('th');
-    th.textContent = d;
     th.dataset.day = i;
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'day-name';
+    nameSpan.textContent = d;
+    const dateSpan = document.createElement('span');
+    dateSpan.className = 'day-date';
+    th.append(nameSpan, dateSpan);
     hrow.appendChild(th);
   });
+  updateHeaderDates();
 
   tbody.innerHTML = '';
   for(let d = 0; d < 7; d++) cells[d].length = 0;
@@ -159,6 +186,7 @@ function hideDragTip(){ dragTip.classList.remove('show'); }
 
 /* MARCADOR DE "AHORA" */
 function updateNow(){
+  updateHeaderDates(); // por si la app queda abierta y cruza la medianoche
   document.querySelectorAll('.now-col').forEach(el => el.classList.remove('now-col'));
   document.querySelectorAll('.now-row').forEach(el => el.classList.remove('now-row'));
   document.querySelectorAll('.now-cell').forEach(el => {
