@@ -222,14 +222,23 @@ function resize(){
   document.querySelectorAll('td.sc').forEach(td => { td.style.fontSize = fs + 'px'; });
 }
 
-/* COLORES PERSONALIZABLES (menú 🎨)
+/* PERSONALIZACIÓN VISUAL (menú 🎨)
    Preferencia puramente visual y local del dispositivo (como el tema), así
-   que vive en localStorage, no en el servidor: cada quien puede ajustar sus
-   propios colores sin afectar a los demás roles. */
+   que vive en localStorage, no en el servidor: cada quien ajusta su propia
+   vista sin afectar a los demás roles. El fondo de las celdas "Libre" NO
+   está acá a propósito: es parte del horario compartido (se edita como
+   cualquier otra actividad, en ✏️ Editar actividades), no una vista personal.
+   type 'color'/'range' guardan y aplican directo el valor de su <input>;
+   'select' hace lo mismo pero el <select> ya trae el valor final del CSS
+   (ej. toda la lista de font-family) en cada <option value>. */
 const STYLE_VARS = [
-  { key: 'gridLine', cssVar: '--grid-line', inputId: 'styleGridLine' },
-  { key: 'hourColor', cssVar: '--hour-color', inputId: 'styleHourColor' },
-  { key: 'nowMarker', cssVar: '--now-marker', inputId: 'styleNowMarker' },
+  { key: 'appFont', cssVar: '--app-font', inputId: 'styleFont', type: 'select' },
+  { key: 'gridLine', cssVar: '--grid-line', inputId: 'styleGridLine', type: 'color' },
+  { key: 'gridLineWidth', cssVar: '--grid-line-width', inputId: 'styleGridLineWidth', type: 'range', unit: 'px', valId: 'styleGridLineWidthVal' },
+  { key: 'hourColor', cssVar: '--hour-color', inputId: 'styleHourColor', type: 'color' },
+  { key: 'hourFontSize', cssVar: '--hour-font-size', inputId: 'styleHourFontSize', type: 'range', unit: 'px', valId: 'styleHourFontSizeVal' },
+  { key: 'dayColor', cssVar: '--day-color', inputId: 'styleDayColor', type: 'color' },
+  { key: 'nowMarker', cssVar: '--now-marker', inputId: 'styleNowMarker', type: 'color' },
 ];
 const STYLE_KEY = 'hs_style_overrides';
 
@@ -239,16 +248,23 @@ function loadStyleOverrides(){
 function applyStyleOverrides(){
   const saved = loadStyleOverrides();
   STYLE_VARS.forEach(v => {
-    if(saved[v.key]) document.documentElement.style.setProperty(v.cssVar, saved[v.key]);
+    if(saved[v.key] !== undefined){
+      document.documentElement.style.setProperty(v.cssVar, v.unit ? saved[v.key] + v.unit : saved[v.key]);
+    }
     const input = document.getElementById(v.inputId);
     if(!input) return;
-    const current = getComputedStyle(document.documentElement).getPropertyValue(v.cssVar).trim();
-    input.value = toHex(saved[v.key] || current);
+    const computed = getComputedStyle(document.documentElement).getPropertyValue(v.cssVar).trim();
+    input.value = v.type === 'color' ? toHex(saved[v.key] || computed)
+      : v.type === 'range' ? (saved[v.key] !== undefined ? saved[v.key] : parseFloat(computed))
+      : (saved[v.key] !== undefined ? saved[v.key] : computed);
+    if(v.valId) document.getElementById(v.valId).textContent = input.value + (v.unit || '');
     input.oninput = () => {
+      const raw = v.type === 'range' ? Number(input.value) : input.value;
       const next = loadStyleOverrides();
-      next[v.key] = input.value;
+      next[v.key] = raw;
       localStorage.setItem(STYLE_KEY, JSON.stringify(next));
-      document.documentElement.style.setProperty(v.cssVar, input.value);
+      document.documentElement.style.setProperty(v.cssVar, v.unit ? raw + v.unit : raw);
+      if(v.valId) document.getElementById(v.valId).textContent = raw + (v.unit || '');
     };
   });
 }
@@ -256,7 +272,7 @@ function resetStyleOverrides(){
   localStorage.removeItem(STYLE_KEY);
   STYLE_VARS.forEach(v => document.documentElement.style.removeProperty(v.cssVar));
   applyStyleOverrides();
-  toast('↺ Colores restablecidos');
+  toast('↺ Estilos restablecidos');
 }
 
 /* ARRANQUE POR ROL

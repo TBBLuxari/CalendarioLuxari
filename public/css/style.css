@@ -10,7 +10,8 @@
   /* Personalizables desde el menú 🎨 (ver STYLE_VARS en app.js). Separados de
      --border/--now/--text3 a propósito: así tocarlos no cambia también el
      borde de botones/modales ni el acento de los botones destacados. */
-  --grid-line:#E0E0DA;--hour-color:#C8C8C2;--now-marker:#E0453C;
+  --grid-line:#E0E0DA;--hour-color:#C8C8C2;--now-marker:#E0453C;--day-color:#888888;
+  --grid-line-width:0.5px;--hour-font-size:9px;--app-font:'DM Sans', system-ui, sans-serif;
 }
 [data-theme="dark"]{
   --bg:#141414;--surface:#1E1E1C;--border:#2C2C28;
@@ -18,10 +19,10 @@
   --time-bg:#181816;--time-border:#323230;
   --btn-bg:#262622;--btn-hover:#303030;--btn-border:#3A3A36;
   --now:#FF6B5E;
-  --grid-line:#2C2C28;--hour-color:#3E3E3A;--now-marker:#FF6B5E;
+  --grid-line:#2C2C28;--hour-color:#3E3E3A;--now-marker:#FF6B5E;--day-color:#5A5A54;
 }
 
-html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans-serif;font-size:13px;}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--app-font);font-size:13px;}
 
 /* TOP BAR
    row1 se reparte en 3: un lado vacío, un centro grande (rol + mes) y los
@@ -64,6 +65,10 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .dropdown-panel-menu.show{display:flex;}
 .style-row{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12px;}
 .style-row input[type=color]{width:32px;height:24px;padding:0;border:1px solid var(--btn-border);border-radius:6px;background:none;cursor:pointer;}
+.style-row select{font:inherit;font-size:11px;padding:4px 6px;border-radius:6px;border:1px solid var(--btn-border);background:var(--btn-bg);color:var(--text);max-width:150px;}
+.style-range{display:flex;align-items:center;gap:6px;}
+.style-range input[type=range]{width:80px;}
+.style-range span{font-size:10px;color:var(--text2);min-width:26px;text-align:right;}
 
 .settings-divider{border-top:1px solid var(--border);margin:4px 0;}
 .rules-row{display:flex;gap:6px;}
@@ -82,10 +87,10 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 #grid{overflow:auto;height:calc(100vh - var(--hdr-h));-webkit-overflow-scrolling:touch;}
 table{table-layout:fixed;border-collapse:collapse;width:100%;min-width:calc(var(--time-w) + var(--day-w) * 7);}
 
-thead th{position:sticky;top:0;z-index:20;background:var(--surface);border:.5px solid var(--grid-line);font-size:9px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--text2);padding:7px 2px;text-align:center;}
+thead th{position:sticky;top:0;z-index:20;background:var(--surface);border-style:solid;border-width:var(--grid-line-width);border-color:var(--grid-line);font-size:9px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--text2);padding:7px 2px;text-align:center;}
 th.corner{position:sticky;top:0;left:0;z-index:30;width:var(--time-w);background:var(--surface);}
 th.now-col{color:var(--now-marker);}
-.day-name{display:block;}
+.day-name{display:block;color:var(--day-color);}
 .day-date{display:block;font-size:11px;font-weight:400;letter-spacing:0;text-transform:none;color:var(--text2);margin-top:1px;}
 th.now-col .day-date{color:var(--now-marker);font-weight:700;}
 
@@ -94,12 +99,12 @@ th.now-col .day-date{color:var(--now-marker);font-weight:700;}
    11:00–12:00, y no el centro de una franja llamada "11". La columna se
    queda fija (sticky) al scrollear los días horizontalmente, para que la
    hora nunca se pierda de vista. */
-td.tc{position:sticky;left:0;z-index:10;width:var(--time-w);min-width:var(--time-w);height:var(--cell-h);background:var(--time-bg);border:.5px solid var(--grid-line);border-right:1.5px solid var(--time-border);}
+td.tc{position:sticky;left:0;z-index:10;width:var(--time-w);min-width:var(--time-w);height:var(--cell-h);background:var(--time-bg);border-style:solid;border-width:var(--grid-line-width);border-color:var(--grid-line);border-right:1.5px solid var(--time-border);}
 td.tc.h6{border-top:1.5px solid var(--time-border);}
-td.tc .tlabel{position:absolute;top:0;right:5px;transform:translateY(-50%);font-size:9px;color:var(--hour-color);background:var(--time-bg);padding:0 2px;line-height:1;white-space:nowrap;pointer-events:none;}
+td.tc .tlabel{position:absolute;top:0;right:5px;transform:translateY(-50%);font-size:var(--hour-font-size);color:var(--hour-color);background:var(--time-bg);padding:0 2px;line-height:1;white-space:nowrap;pointer-events:none;}
 td.tc.now-row .tlabel{color:var(--now-marker);font-weight:700;}
 
-td.sc{height:var(--cell-h);border:.5px solid var(--grid-line);font-size:9px;font-weight:500;text-align:center;vertical-align:middle;cursor:crosshair;user-select:none;transition:filter .06s;padding:0 1px;touch-action:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;position:relative;}
+td.sc{height:var(--cell-h);border-style:solid;border-width:var(--grid-line-width);border-color:var(--grid-line);font-size:9px;font-weight:500;text-align:center;vertical-align:middle;cursor:crosshair;user-select:none;transition:filter .06s;padding:0 1px;touch-action:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;position:relative;}
 td.sc:hover{filter:brightness(.84);}
 td.sc.h6{border-top:1px solid rgba(128,128,128,.18);}
 

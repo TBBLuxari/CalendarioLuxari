@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>Mi Horario Semanal</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=Inter:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
@@ -63,10 +63,23 @@
       <div class="dropdown" id="styleDD">
         <button class="btn" onclick="toggleDropdown('stylePanel')">🎨</button>
         <div class="dropdown-panel dropdown-panel-menu" id="stylePanel">
+          <label class="style-row">Fuente
+            <select id="styleFont">
+              <option value="'DM Sans', system-ui, sans-serif">DM Sans (original)</option>
+              <option value="'Inter', system-ui, sans-serif">Inter</option>
+              <option value="'Poppins', system-ui, sans-serif">Poppins</option>
+              <option value="'Roboto Mono', monospace">Roboto Mono</option>
+              <option value="Georgia, 'Times New Roman', serif">Georgia (serif)</option>
+              <option value="system-ui, -apple-system, sans-serif">Del sistema</option>
+            </select>
+          </label>
           <label class="style-row">Líneas de la cuadrícula <input type="color" id="styleGridLine"></label>
+          <label class="style-row">Ancho de las líneas <span class="style-range"><input type="range" id="styleGridLineWidth" min="0" max="3" step="0.5"><span id="styleGridLineWidthVal"></span></span></label>
           <label class="style-row">Color de la hora <input type="color" id="styleHourColor"></label>
+          <label class="style-row">Tamaño de la hora <span class="style-range"><input type="range" id="styleHourFontSize" min="7" max="16" step="1"><span id="styleHourFontSizeVal"></span></span></label>
+          <label class="style-row">Color del día <input type="color" id="styleDayColor"></label>
           <label class="style-row">Marcador de "ahora" <input type="color" id="styleNowMarker"></label>
-          <button class="btn" onclick="resetStyleOverrides()">↺ Restablecer colores</button>
+          <button class="btn" onclick="resetStyleOverrides()">↺ Restablecer estilos</button>
         </div>
       </div>
 
