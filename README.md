@@ -1,74 +1,102 @@
 # Mi Horario Semanal
 
-Horario semanal interactivo (24 h × 7 días) que corre completamente en el navegador, sin backend. Los datos se guardan en `localStorage`.
+Horario semanal interactivo (24 h × 7 días) con backend propio: Node.js + Express y una base de datos SQLite (local en desarrollo, [Turso](https://turso.tech) en producción). El horario, las actividades, los eventos con fecha y las citas viven en el servidor — cualquier dispositivo con la contraseña correcta ve y edita lo mismo, no algo guardado solo en ese navegador.
+
+> Antes esta app era 100% estática (datos en `localStorage`). Esa versión sigue disponible en la rama [`backup/static-site-pre-backend`](../../tree/backup/static-site-pre-backend) / tag `backup/static-site-2026-09-12` por si hace falta volver atrás.
 
 ## Estructura
 
 ```
 Calendario/
-├── index.html        # Marcado de la página
-├── css/
-│   └── style.css      # Estilos y temas (claro/oscuro)
-├── js/
-│   ├── auth.js            # Candado de acceso: contraseña de propietario/invitado y permisos por rol
-│   ├── activities.js   # Actividades personalizables (nombre, ícono, colores) + persistencia
-│   ├── grid.js          # Construcción de la cuadrícula, pintado, marcador de "ahora" y propuestas de invitados
-│   ├── ics.js            # Exportar el horario como eventos .ics recurrentes
-│   ├── notify.js          # Avisos en la app (notificación del navegador + sonido + alerta bloqueante)
-│   ├── google-sync.js      # Sincronización (subir/traer) con un calendario dedicado en Google Calendar
-│   └── app.js               # Inicialización, tema, editor de actividades y barra de herramientas
-├── server.js          # Servidor estático de desarrollo (Bun) — `bun run dev`
+├── server/
+│   ├── src/
+│   │   ├── index.js            # Express: sirve public/ y monta /api
+│   │   ├── db.js                # cliente libSQL + init de esquema y datos por defecto
+│   │   ├── seedDefaults.js      # horario/actividades con los que arranca una DB nueva
+│   │   ├── auth/middleware.js   # sesión (cookie httpOnly + JWT), requireAuth/requireRole
+│   │   ├── routes/               # auth, schedule, activities, events, proposals, booking
+│   │   └── services/availability.js  # huecos libres reales para el rol "booking"
+│   └── migrations/0001_init.sql
+├── public/                      # frontend (HTML/CSS/JS plano, sin build step)
+│   ├── index.html
+│   ├── css/style.css
+│   └── js/
+│       ├── api.js              # fetch envuelto (cookies same-origin)
+│       ├── auth.js             # login/logout contra la API, permisos por rol
+│       ├── activities.js       # actividades (CRUD vía API)
+│       ├── grid.js             # cuadrícula, pintado, propuestas de invitado
+│       ├── events.js           # eventos con fecha real (plazos, entregas, citas)
+│       ├── booking.js          # vista de "agendar cita" + panel de aprobación
+│       ├── ics.js              # exportar .ics (recurrente + eventos con fecha)
+│       ├── notify.js           # avisos en la app (notificación + pitido + alerta bloqueante)
+│       └── google-sync.js      # sincronización con un calendario dedicado en Google Calendar
 ├── package.json
+├── .env.example
 └── README.md
 ```
 
-## Uso
+## Desarrollo local
 
-Abre `index.html` en el navegador (doble clic, o sírvelo con cualquier servidor estático).
+Requiere Node 18+.
 
-- **Clic o arrastra** sobre la cuadrícula para pintar la actividad seleccionada.
-- **Doble clic** en una celda la deja en "Libre".
-- **✏️ Editar** abre el editor de actividades: nombre, ícono (emoji) opcional, color de fondo y de letra. También permite añadir, borrar o **buscar** actividades (útil cuando la lista crece).
-- Mientras arrastras, aparece un aviso con el rango de horas real y la duración (p. ej. "11:00 – 15:00 (4 h)"), para no confundirte contando celdas.
-- La franja horaria actual queda resaltada, como en Google Calendar.
-- **💾 Guardar** persiste el horario. **🧹 Limpiar** vacía todas las celdas. **↺ Recargar** restablece el horario de ejemplo inicial.
+```bash
+npm install
+cp .env.example .env
+```
+
+Completa en `.env` al menos `JWT_SECRET` y las contraseñas de los roles que quieras usar (`OWNER_PASSWORD`, `GUEST_PASSWORD`, `BOOKING_PASSWORD` — deja vacía la que no quieras habilitar). No hace falta cuenta en Turso para desarrollar: por defecto usa un archivo SQLite local (`server/data/local.db`, ignorado por git).
+
+```bash
+npm run dev
+```
+
+Abre `http://localhost:3000`.
+
+## Roles y contraseñas
+
+Ya no hay hashes en el código fuente (antes vivían en `js/auth.js`, visibles en el repo público). Ahora cada contraseña se hashea con `bcrypt` al arrancar el servidor, a partir de las variables de entorno:
+
+- **`owner`** (`OWNER_PASSWORD`): acceso completo — edita el horario, actividades, eventos, aprueba propuestas y citas, sincroniza con Google.
+- **`guest`** (`GUEST_PASSWORD`): ve el horario y solo puede **proponer** actividades sobre celdas libres (queda pendiente de aprobación); tiene un botón para copiar el resumen y enviarlo por WhatsApp/mensaje.
+- **`booking`** (`BOOKING_PASSWORD`): no ve el horario en absoluto — entra a una vista dedicada con los próximos huecos libres reales (calculados en el servidor) para pedir una cita. Queda pendiente hasta que el propietario la apruebe.
+
+Sesión guardada en una cookie `httpOnly` (JWT, 30 días). Cambiar una contraseña es cambiar la variable de entorno y reiniciar el servidor.
+
+## Las funciones nuevas de esta versión
+
+- **Scroll horizontal real**: la cuadrícula tiene un ancho mínimo por columna en vez de encogerse siempre al ancho de la pantalla, así en móvil se puede desplazar para ver cada día con un tamaño legible (la columna de horas queda fija a la izquierda).
+- **Eventos con fecha (no recurrentes)**: botón **🗓️ Eventos**, para plazos, entregas o cualquier cosa puntual — con fecha, hora, notas y recordatorio, separados del horario semanal que se repite.
+- **Agendar cita**: rol `booking` dedicado — quien tenga esa contraseña ve tus huecos libres reales (horario semanal menos eventos y otras solicitudes ya pendientes) desde su propio celular, pide una hora, y tú la apruebas o rechazas desde **🗓️ Eventos**. Al aprobarla se crea un evento real que puedes sincronizar con Google.
+- **Avisos más insistentes**: tanto al sincronizar con Google como al exportar `.ics`, cada bloque/evento lleva varios recordatorios (dos avisos emergentes + uno por correo) en vez de uno solo. **Importante:** el volumen, la vibración y qué tan "imposible de ignorar" es la notificación en el celular lo controla la app de Google Calendar (Ajustes → Notificaciones), no algo que la API pueda forzar — si la sigues ignorando, sube ahí la prioridad de las notificaciones de ese calendario.
+
+## Sincronización con Google Calendar
+
+Sigue siendo 100% del lado del cliente (OAuth de tu propia cuenta, sin pasar por el backend): sube tu horario semanal y tus eventos con fecha a un calendario **separado y dedicado** ("Mi Horario Semanal"), sin tocar tu calendario principal.
+
+1. En [Google Cloud Console](https://console.cloud.google.com/), crea un proyecto, habilita la **Google Calendar API**, configura la pantalla de consentimiento OAuth (tipo Externo, agrega tu cuenta como usuario de prueba, permiso `.../auth/calendar`) y crea un **ID de cliente de OAuth** de tipo "Aplicación web".
+2. En "Orígenes autorizados de JavaScript" agrega el dominio donde despliegues la app (el de Render) y `http://localhost:3000` para desarrollo.
+3. Copia el Client ID en `GOOGLE_CLIENT_ID` dentro de [public/js/google-sync.js](public/js/google-sync.js). No es secreto — puede quedar en el repo público.
+
+## Despliegue (gratis, sin tarjeta)
+
+1. **Base de datos — [Turso](https://turso.tech):** crea una cuenta y una base de datos, copia la URL (`libsql://...`) y el token de autenticación.
+2. **Servidor — [Render](https://render.com), "New Web Service":** conéctalo a este repo de GitHub.
+   - Build command: `npm install`
+   - Start command: `npm start`
+   - Variables de entorno: `DATABASE_URL`, `DATABASE_AUTH_TOKEN`, `JWT_SECRET`, `OWNER_PASSWORD`, `GUEST_PASSWORD`, `BOOKING_PASSWORD`.
+3. Cada push a `main` re-despliega solo. El plan gratuito de Render "duerme" el servicio tras ~15 min sin visitas y tarda unos segundos en despertar en la siguiente visita — aceptable para uso personal/familiar. Si eso molesta, la alternativa es Fly.io (no se duerme, pide tarjeta) o un plan de pago de Render/DigitalOcean.
+
+GitHub Pages **ya no sirve la app en vivo** (no puede correr Node) — el repo sigue en GitHub como código fuente, pero el sitio real ahora vive en Render.
 
 ## Notificaciones para seguir el horario
 
-Tres mecanismos, pensados para complementarse:
+Cuatro mecanismos, pensados para complementarse:
 
-- **📆 Sincronizar Google** conecta con tu cuenta de Google (Google Identity Services, sin backend) y sube el horario directamente a un calendario **separado y dedicado** llamado "Mi Horario Semanal" — tu calendario principal nunca se toca. Cada sincronización borra los eventos anteriores de ese calendario y sube los actuales, con un recordatorio nativo (popup) al inicio de cada bloque. Requiere haber creado un OAuth Client ID propio en Google Cloud Console (ver más abajo) y pegarlo en `js/google-sync.js`.
-- **🔄 Traer de Google** es la contraparte de sincronizar: reconstruye el horario y las actividades **locales** a partir de lo que ya esté guardado en el calendario dedicado. Así puedes coordinar varios computadores: sincronizas desde uno (sube) y traes desde el otro (baja), en vez de que cada uno sobreescriba con su propia versión. Cada evento guarda el bloque y la actividad completa (id, color, ícono) en una propiedad privada, invisible en la UI de Google Calendar, para poder reconstruir el horario exacto.
-- **📅 Exportar .ics** genera un archivo `mi-horario.ics` con un evento semanal recurrente por cada bloque de actividad (los tramos "Libre" no generan evento), para importar manualmente en cualquier app de calendario.
-- **🔔 Avisos** activa notificaciones del navegador + un pitido fuerte (tres tonos) cada vez que cambias de franja horaria, mientras la pestaña esté abierta, junto con una alerta de pantalla completa que no se puede cerrar hasta que le des "Aceptar" (el pitido se repite y el título de la pestaña parpadea mientras tanto). Es un plus para cuando estás trabajando frente al computador; no es confiable en el celular si el navegador queda en segundo plano o la pantalla se bloquea, y ningún navegador puede "bloquear" el sistema fuera de la propia pestaña.
-
-## Candado de acceso: propietario e invitados
-
-Por defecto la app **no pide contraseña** (queda igual que antes). Para activarlo:
-
-1. Abre la app en el navegador, abre la consola de desarrollador (F12) y ejecuta, para cada contraseña que quieras usar:
-   ```js
-   await hashPassword('tu-contraseña')
-   ```
-2. Copia el resultado (un hash SHA-256) en `OWNER_HASH` y `GUEST_HASH` dentro de [js/auth.js](js/auth.js).
-3. Recarga la página: ahora pedirá contraseña antes de mostrar el horario.
-
-**Importante:** al ser un sitio 100% estático (sin servidor), esto es un candado *ligero* que filtra visitas casuales — no seguridad real, porque el hash queda visible en el código fuente público y alguien con conocimientos técnicos podría intentar romperlo por fuerza bruta. No lo uses para proteger información sensible.
-
-Con la contraseña de **propietario** tienes acceso completo, igual que ahora. Con la de **invitado**:
-- Solo puede pintar actividades sobre celdas que estén en "Libre" (no puede editar ni borrar lo que ya pusiste) — queda como una **propuesta** (borde punteado), no se guarda en el horario real todavía.
-- No ve el editor de actividades, ni los botones de sincronizar/traer de Google, Guardar, Limpiar o Recargar.
-- Tiene un botón **📋 Copiar propuestas** para copiar un resumen de texto y enviártelo (WhatsApp, mensaje, etc.) — no hay backend que te avise automáticamente si el invitado usa un computador distinto al tuyo.
-
-Tú, como propietario, ves el botón **📩 Propuestas (N)** con la cantidad de propuestas pendientes; ábrelo para aprobar (se aplican al horario real) o rechazar cada una.
-
-### Configurar la sincronización con Google Calendar
-
-1. En [Google Cloud Console](https://console.cloud.google.com/), crea un proyecto, habilita la **Google Calendar API**, configura la pantalla de consentimiento OAuth (tipo Externo, agrega tu cuenta como usuario de prueba, permiso `.../auth/calendar`) y crea un **ID de cliente de OAuth** de tipo "Aplicación web".
-2. En "Orígenes autorizados de JavaScript" agrega el dominio donde sirvas la app (p. ej. `https://tbbluxari.github.io` y `http://localhost:3000` para desarrollo local).
-3. Copia el Client ID resultante en la constante `GOOGLE_CLIENT_ID` de [js/google-sync.js](js/google-sync.js). No es secreto — es seguro que quede en el repo público.
-4. La primera vez que uses el botón, Google mostrará una advertencia de "app no verificada" (normal para apps personales sin revisión); solo tu cuenta (agregada como test user) puede autorizarla.
+- **📆 Sincronizar Google** / **🔄 Traer de Google**: ver arriba.
+- **📅 Exportar .ics**: genera `mi-horario.ics` con el horario recurrente + tus eventos con fecha, para importar en cualquier app de calendario.
+- **🔔 Avisos**: notificación del navegador + pitido fuerte + alerta de pantalla completa que no se cierra sola, mientras la pestaña esté abierta (horario semanal y eventos con recordatorio). No es confiable en el celular si el navegador queda en segundo plano — para eso está la sincronización con Google.
 
 ## Pendiente / decisiones abiertas
 
-- Publicación en GitHub: si el repo es privado y se activa GitHub Pages en el plan gratuito, la URL publicada queda accesible para quien la tenga (Pages gratuito no ofrece control de acceso real). Se agregó un candado ligero (ver arriba) que filtra visitas casuales, pero **no** es control de acceso real — si necesitas eso, la alternativa es un backend con autenticación propia.
+- El rol `guest` y el rol `booking` no tienen más control de identidad que la contraseña compartida (igual que antes) — pensado para 2-3 personas de confianza, no para uso público masivo.
+- No hay recuperación de contraseña ni gestión de usuarios desde la UI: todo se configura por variables de entorno en el servidor.

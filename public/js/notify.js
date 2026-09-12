@@ -117,3 +117,33 @@ function checkActivityChange(){
   }
   showBlockingAlert(label);
 }
+
+/* RECORDATORIO DE EVENTOS CON FECHA (plazos, entregas, citas)
+   Complementa checkActivityChange: dispara la misma alerta bloqueante en
+   cuanto arranca la hora de un evento marcado con "Recordarme", mientras la
+   pestaña esté abierta. La sincronización con Google (google-sync.js/ics.js)
+   es la vía confiable para cuando la app está cerrada. */
+const FIRED_EVENTS_KEY = 'hs_fired_events';
+let firedEventIds = new Set();
+try{ firedEventIds = new Set(JSON.parse(localStorage.getItem(FIRED_EVENTS_KEY) || '[]')); }catch(e){}
+
+function checkEventReminders(){
+  if(!notifsEnabled || typeof events === 'undefined' || currentRole !== 'owner') return;
+  const now = new Date();
+  const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  events.forEach(ev => {
+    if(!ev.remind || ev.date !== dateStr || firedEventIds.has(ev.id)) return;
+    const evTime = new Date(now); evTime.setHours(ev.startHour, 0, 0, 0);
+    const diffMs = now - evTime;
+    if(diffMs < 0 || diffMs > 5 * 60 * 1000) return; // ventana de 5 min tras el inicio
+
+    firedEventIds.add(ev.id);
+    try{ localStorage.setItem(FIRED_EVENTS_KEY, JSON.stringify([...firedEventIds])); }catch(e){}
+
+    const label = '📌 ' + ev.title;
+    if(Notification.permission === 'granted'){
+      new Notification('Evento', {body: ev.title, tag: 'hs-event-' + ev.id});
+    }
+    showBlockingAlert(label);
+  });
+}

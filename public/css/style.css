@@ -40,9 +40,17 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .ab:hover{filter:brightness(.88);}
 .ab.on{border-color:var(--text);box-shadow:0 0 0 1px var(--text);}
 
-/* GRID */
+/* GRID
+   La cuadrícula tiene un ancho mínimo real (columna de horas + 7 días con un
+   ancho legible cada uno) en vez de "width:100%": así, en pantallas angostas,
+   la tabla mide más que el viewport y #grid (overflow:auto) sí tiene algo que
+   desplazar horizontalmente — antes la tabla se achicaba para caber siempre
+   en el contenedor y el scroll horizontal nunca se activaba. */
+:root{--day-w:92px;}
+@media(max-width:700px){:root{--day-w:78px;}}
 #grid{overflow:auto;height:calc(100vh - var(--hdr-h));-webkit-overflow-scrolling:touch;}
-table{width:100%;table-layout:fixed;border-collapse:collapse;min-width:320px;}
+table{table-layout:fixed;border-collapse:collapse;min-width:calc(var(--time-w) + var(--day-w) * 7);}
+th:not(.corner),td.sc{width:var(--day-w);min-width:var(--day-w);}
 
 thead th{position:sticky;top:0;z-index:20;background:var(--surface);border:.5px solid var(--border);font-size:9px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--text2);padding:7px 2px;text-align:center;}
 th.corner{position:sticky;top:0;left:0;z-index:30;width:var(--time-w);background:var(--surface);}
@@ -50,8 +58,10 @@ th.now-col{color:var(--now);}
 
 /* La etiqueta de hora se ancla a la línea superior de la celda (estilo Google
    Calendar) para que quede claro que "11:00" marca el INICIO del bloque
-   11:00–12:00, y no el centro de una franja llamada "11". */
-td.tc{position:relative;width:var(--time-w);min-width:var(--time-w);height:var(--cell-h);background:var(--time-bg);border:.5px solid var(--border);border-right:1.5px solid var(--time-border);}
+   11:00–12:00, y no el centro de una franja llamada "11". La columna se
+   queda fija (sticky) al scrollear los días horizontalmente, para que la
+   hora nunca se pierda de vista. */
+td.tc{position:sticky;left:0;z-index:10;width:var(--time-w);min-width:var(--time-w);height:var(--cell-h);background:var(--time-bg);border:.5px solid var(--border);border-right:1.5px solid var(--time-border);}
 td.tc.h6{border-top:1.5px solid var(--time-border);}
 td.tc .tlabel{position:absolute;top:0;right:5px;transform:translateY(-50%);font-size:9px;color:var(--text3);background:var(--time-bg);padding:0 2px;line-height:1;white-space:nowrap;pointer-events:none;}
 td.tc.now-row .tlabel{color:var(--now);font-weight:700;}
@@ -74,8 +84,11 @@ td.sc .now-line{position:absolute;left:0;right:0;height:2px;background:var(--now
 #toast.show{opacity:1;}
 
 /* ACTIVITY EDITOR MODAL */
-#actModal{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;z-index:2000;padding:16px;}
-#actModal.show{display:flex;}
+/* Overlay compartido por todos los modales (propuestas, actividades,
+   eventos/citas): antes solo #actModal tenía este bloque, así que #propModal
+   quedaba sin "display:none" y podía aparecer siempre visible en la página. */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;z-index:2000;padding:16px;}
+.modal-overlay.show{display:flex;}
 .modal-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;max-width:480px;width:100%;max-height:80vh;overflow:auto;}
 .modal-box h2{font-size:14px;margin-bottom:10px;}
 #actSearch{width:100%;font:inherit;font-size:12px;padding:6px 8px;margin-bottom:10px;border-radius:6px;border:1px solid var(--btn-border);background:var(--btn-bg);color:var(--text);}
@@ -108,7 +121,7 @@ td.sc .now-line{position:absolute;left:0;right:0;height:2px;background:var(--now
 /* CANDADO DE ACCESO */
 #lockScreen{position:fixed;inset:0;background:var(--bg);display:none;align-items:center;justify-content:center;z-index:6000;padding:16px;}
 body.locked #lockScreen{display:flex;}
-body.locked #topbar,body.locked #grid{visibility:hidden;}
+body.locked #topbar,body.locked #grid,body.locked #bookingView{visibility:hidden;}
 #lockScreen #lockHint{font-size:13px;color:var(--text2);margin-bottom:16px;}
 #lockForm{display:flex;flex-direction:column;gap:10px;}
 #lockForm input{font:inherit;font-size:13px;padding:9px 10px;border-radius:8px;border:1px solid var(--btn-border);background:var(--btn-bg);color:var(--text);text-align:center;}
@@ -122,3 +135,40 @@ body:not(.role-guest) .guest-only{display:none !important;}
 /* Celdas con una propuesta de invitado pendiente de aprobación: borde
    punteado para diferenciarlas de una celda ya confirmada. */
 td.sc.proposal-cell{outline:2px dashed var(--now);outline-offset:-2px;}
+
+/* ROL "booking": no ve el horario en absoluto (privacidad), solo la vista
+   dedicada de disponibilidad + solicitud de cita. */
+#bookingView{display:none;}
+body.role-booking #topbar,body.role-booking #grid{display:none;}
+body.role-booking #bookingView{display:flex;}
+
+#bookingView{justify-content:center;padding:24px 16px;height:100vh;overflow:auto;}
+.booking-box{max-width:520px;width:100%;margin:0 auto;}
+.booking-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+.booking-head .title{font-size:15px;font-weight:600;}
+#bookingView .hint{display:block;color:var(--text2);font-size:11px;margin-bottom:16px;}
+.avail-day{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px;}
+.avail-day-title{font-size:12px;font-weight:600;margin-bottom:6px;text-transform:capitalize;}
+.avail-chips{display:flex;flex-wrap:wrap;gap:6px;}
+.avail-chip{border-radius:20px;}
+.booking-form{display:none;flex-direction:column;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;margin-top:14px;position:sticky;bottom:12px;box-shadow:0 6px 24px rgba(0,0,0,.15);}
+.booking-form.show{display:flex;}
+.booking-range{font-size:12px;font-weight:600;}
+.booking-fields{display:flex;gap:8px;}
+.booking-fields label{flex:1;display:flex;flex-direction:column;gap:4px;font-size:10px;color:var(--text2);}
+.booking-form input,.booking-form select{font:inherit;font-size:12px;padding:6px 8px;border-radius:6px;border:1px solid var(--btn-border);background:var(--btn-bg);color:var(--text);}
+
+/* MODAL DE EVENTOS Y CITAS */
+.modal-subtitle{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--text2);margin:14px 0 8px;}
+.modal-subtitle:first-of-type{margin-top:0;}
+#bookingRequestsWrap:has(#bookingRequestsList .act-empty){display:none;}
+.event-row{align-items:flex-start;}
+.event-info{flex:1;font-size:12px;line-height:1.5;}
+.event-when{font-size:10px;color:var(--text2);}
+.event-form-row{display:flex;gap:6px;}
+.event-form-row input[type=date]{flex:1.4;}
+.event-form-row select{flex:1;}
+#newEventForm{display:flex;flex-direction:column;gap:6px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);}
+#newEventForm input[type=text]{font:inherit;font-size:12px;padding:6px 8px;border-radius:6px;border:1px solid var(--btn-border);background:var(--btn-bg);color:var(--text);}
+#newEventForm select,.event-form-row input{font:inherit;font-size:12px;padding:6px 8px;border-radius:6px;border:1px solid var(--btn-border);background:var(--btn-bg);color:var(--text);}
+.event-remind-lbl{font-size:11px;color:var(--text2);display:flex;align-items:center;gap:5px;}

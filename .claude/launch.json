@@ -2,9 +2,9 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "horario-bun",
-      "runtimeExecutable": "bun",
-      "runtimeArgs": ["run", "server.js"],
+      "name": "horario-node",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["--watch", "server/src/index.js"],
       "port": 3000
     }
   ]

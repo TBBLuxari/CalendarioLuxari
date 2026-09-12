@@ -1,4 +1,6 @@
-// app.js — inicialización, tema, barra de herramientas y editor de actividades.
+// app.js — arranque de la app, tema, editor de actividades y orquestación
+// entre backend/roles. Sustituye al init() sincrónico de la versión estática:
+// ahora todo depende de sesión + datos que vienen del servidor.
 
 function toast(msg){
   const el = document.getElementById('toast');
@@ -8,7 +10,12 @@ function toast(msg){
   el._t = setTimeout(() => el.classList.remove('show'), 2000);
 }
 
-/* TEMA */
+function debounce(fn, ms){
+  let t;
+  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+}
+
+/* TEMA (preferencia puramente local del dispositivo: se queda en localStorage) */
 function applyTheme(t){
   document.documentElement.dataset.theme = t;
   document.getElementById('tbtn').textContent = t === 'dark' ? '☀️' : '🌙';
@@ -55,6 +62,10 @@ function closeActivityEditor(){
 }
 actSearch.addEventListener('input', () => renderActList());
 
+const persistActivity = debounce((id, patch) => {
+  updateActivity(id, patch).catch(e => toast('❌ ' + e.message));
+}, 400);
+
 function renderActList(){
   actList.innerHTML = '';
   const q = actSearch.value.trim().toLowerCase();
@@ -72,29 +83,29 @@ function renderActList(){
 
     const nameInput = document.createElement('input');
     nameInput.type = 'text'; nameInput.className = 'act-name'; nameInput.value = a.label;
-    nameInput.oninput = () => updateActivity(a.id, {label: nameInput.value});
+    nameInput.oninput = () => { a.label = nameInput.value; persistActivity(a.id, {label: nameInput.value}); };
 
     const iconInput = document.createElement('input');
     iconInput.type = 'text'; iconInput.className = 'act-icon'; iconInput.value = a.icon || '';
     iconInput.maxLength = 4; iconInput.placeholder = '🙂';
-    iconInput.oninput = () => updateActivity(a.id, {icon: iconInput.value});
+    iconInput.oninput = () => { a.icon = iconInput.value; persistActivity(a.id, {icon: iconInput.value}); };
 
     const bgInput = document.createElement('input');
     bgInput.type = 'color'; bgInput.title = 'Color de fondo'; bgInput.value = toHex(a.bg);
-    bgInput.oninput = () => updateActivity(a.id, {bg: bgInput.value});
+    bgInput.onchange = () => { a.bg = bgInput.value; persistActivity(a.id, {bg: bgInput.value}); };
 
     const fgInput = document.createElement('input');
     fgInput.type = 'color'; fgInput.title = 'Color de letra'; fgInput.value = toHex(a.fg);
-    fgInput.oninput = () => updateActivity(a.id, {fg: fgInput.value});
+    fgInput.onchange = () => { a.fg = fgInput.value; persistActivity(a.id, {fg: fgInput.value}); };
 
     row.append(nameInput, iconInput, bgInput, fgInput);
 
     if(a.id !== 'free'){
       const del = document.createElement('button');
       del.className = 'btn act-del'; del.textContent = '🗑';
-      del.onclick = () => {
+      del.onclick = async () => {
         if(!confirm(`¿Eliminar "${a.label}"? Las celdas que la usen quedarán en "Libre".`)) return;
-        deleteActivity(a.id);
+        await deleteActivity(a.id);
         renderActList();
       };
       row.appendChild(del);
@@ -113,16 +124,20 @@ function toHex(c){
   return '#' + rgb.slice(0, 3).map(n => (+n).toString(16).padStart(2, '0')).join('');
 }
 
-document.getElementById('newActForm').addEventListener('submit', e => {
+document.getElementById('newActForm').addEventListener('submit', async e => {
   e.preventDefault();
   const label = document.getElementById('newActName').value.trim();
   if(!label) return;
   const icon = document.getElementById('newActIcon').value.trim();
   const bg = document.getElementById('newActBg').value;
   const fg = document.getElementById('newActFg').value;
-  addActivity({label, icon, bg, fg});
-  e.target.reset();
-  renderActList();
+  try{
+    await addActivity({label, icon, bg, fg});
+    e.target.reset();
+    renderActList();
+  }catch(err){
+    toast('❌ ' + err.message);
+  }
 });
 
 /* AJUSTE DE ALTO DE CELDAS */
@@ -137,10 +152,20 @@ function resize(){
   document.querySelectorAll('td.sc').forEach(td => { td.style.fontSize = fs + 'px'; });
 }
 
-/* INICIO */
-function init(){
-  applyTheme(localStorage.getItem('hs_theme') || (matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light'));
-  applyRolePermissions();
+/* ARRANQUE POR ROL
+   El rol "booking" nunca ve el horario (privacidad: solo ve huecos libres,
+   no qué actividad hay en cada uno). Owner/guest sí necesitan el horario, las
+   actividades y las propuestas cargadas antes de construir la cuadrícula. */
+async function startForRole(role){
+  if(role === 'booking'){
+    await initBookingView();
+    return;
+  }
+
+  const tasks = [fetchActivities(), fetchSchedule(), fetchProposals()];
+  if(role === 'owner') tasks.push(fetchEvents(), fetchBookingRequests());
+  await Promise.all(tasks);
+
   buildGrid();
   renderPalette();
   initTouch();
@@ -149,15 +174,44 @@ function init(){
 
   updateNotifBtn();
   setInterval(checkActivityChange, 15000);
+  setInterval(checkEventReminders, 30000);
 
   initGoogleAuth();
 
   window.addEventListener('resize', resize);
   (document.fonts?.ready || Promise.resolve()).then(resize);
   setTimeout(resize, 100);
-
-  window.addEventListener('beforeunload', () => {
-    try{ localStorage.setItem(DATA_KEY, JSON.stringify(data)); }catch(e){}
-  });
 }
-document.addEventListener('DOMContentLoaded', init);
+
+// Llamado por auth.js justo después de un login exitoso desde la pantalla de
+// contraseña (la primera carga, si ya había sesión, pasa por boot() directo).
+async function onLoggedIn(){
+  try{
+    await startForRole(currentRole);
+  }catch(e){
+    console.error(e);
+    toast('❌ No se pudo cargar tu horario: ' + e.message);
+  }
+}
+
+async function boot(){
+  applyTheme(localStorage.getItem('hs_theme') || (matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light'));
+
+  try{
+    const me = await api('/auth/me');
+    currentRole = me.role;
+  }catch(e){
+    currentRole = null;
+  }
+  applyRolePermissions();
+
+  if(currentRole){
+    try{
+      await startForRole(currentRole);
+    }catch(e){
+      console.error(e);
+      toast('❌ No se pudo cargar tu horario: ' + e.message);
+    }
+  }
+}
+document.addEventListener('DOMContentLoaded', boot);

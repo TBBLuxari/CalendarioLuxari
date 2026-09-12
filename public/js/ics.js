@@ -40,6 +40,18 @@ function nextMonday(){
   return monday;
 }
 
+// Varias VALARM por evento (en vez de una sola al inicio) para que el
+// avisador dispare más de una notificación y sea más difícil ignorarlo.
+function pushAlarms(lines, summary){
+  [-10, -5, 0].forEach(min => {
+    lines.push('BEGIN:VALARM');
+    lines.push('ACTION:DISPLAY');
+    lines.push('DESCRIPTION:' + icsEscape(summary));
+    lines.push('TRIGGER:' + (min === 0 ? 'PT0M' : `-PT${-min}M`));
+    lines.push('END:VALARM');
+  });
+}
+
 function buildICS(){
   const monday = nextMonday();
   const now = new Date();
@@ -71,14 +83,26 @@ function buildICS(){
       lines.push('DTEND:' + icsLocalDate(endDate));
       lines.push('RRULE:FREQ=WEEKLY');
       lines.push('SUMMARY:' + icsEscape(summary));
-      lines.push('BEGIN:VALARM');
-      lines.push('ACTION:DISPLAY');
-      lines.push('DESCRIPTION:' + icsEscape(summary));
-      lines.push('TRIGGER:-PT0M');
-      lines.push('END:VALARM');
+      pushAlarms(lines, summary);
       lines.push('END:VEVENT');
     });
   }
+
+  // Eventos con fecha real (plazos, entregas, citas) — no recurrentes.
+  (typeof events !== 'undefined' ? events : []).forEach(ev => {
+    const [y, m, d2] = ev.date.split('-').map(Number);
+    const startDate = new Date(y, m - 1, d2, ev.startHour, 0, 0);
+    const endDate = new Date(y, m - 1, d2, ev.endHour, 0, 0);
+    lines.push('BEGIN:VEVENT');
+    lines.push('UID:' + ev.id + '@mi-horario-semanal');
+    lines.push('DTSTAMP:' + icsStampUTC(now));
+    lines.push('DTSTART:' + icsLocalDate(startDate));
+    lines.push('DTEND:' + icsLocalDate(endDate));
+    lines.push('SUMMARY:' + icsEscape(ev.title));
+    if(ev.notes) lines.push('DESCRIPTION:' + icsEscape(ev.notes));
+    if(ev.remind) pushAlarms(lines, ev.title);
+    lines.push('END:VEVENT');
+  });
 
   lines.push('END:VCALENDAR');
   return lines.join('\r\n');

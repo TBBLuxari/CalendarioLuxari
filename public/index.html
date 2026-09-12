@@ -18,15 +18,16 @@
       <span class="hint">Clic · Arrastra · 2×clic borra</span>
       <span class="hint" id="roleBadge"></span>
       <button class="btn owner-only" id="propBtn" onclick="openPropModal()">📩 Propuestas (0)</button>
+      <button class="btn owner-only" id="eventsBtn" onclick="openEventsModal()">🗓️ Eventos (0)</button>
       <button class="btn guest-only" onclick="copyProposalsText()">📋 Copiar propuestas</button>
       <button class="btn" id="tbtn" onclick="toggleTheme()">🌙</button>
       <button class="btn" id="notifBtn" onclick="toggleNotifs()">🔕 Avisos</button>
       <button class="btn" onclick="exportICS()">📅 Exportar .ics</button>
-      <button class="btn owner-only" id="gsyncBtn" onclick="syncGoogleCalendar()" title="Sube tu horario local a Google, sobrescribiendo lo que haya ahí">📆 Sincronizar Google</button>
+      <button class="btn owner-only" id="gsyncBtn" onclick="syncGoogleCalendar()" title="Sube tu horario y eventos a Google, sobrescribiendo lo que haya ahí">📆 Sincronizar Google</button>
       <button class="btn owner-only" id="gpullBtn" onclick="pullFromGoogleCalendar()" title="Trae el horario guardado en Google y reemplaza el local, para coordinar entre computadores">🔄 Traer de Google</button>
       <button class="btn owner-only" onclick="saveData()">💾 Guardar</button>
       <button class="btn owner-only" onclick="clearAll()">🧹 Limpiar</button>
-      <button class="btn owner-only" onclick="resetAll()">↺ Recargar</button>
+      <button class="btn owner-only" onclick="resetAll()" title="Descarta los cambios sin guardar y recarga lo último guardado en el servidor">↺ Recargar</button>
       <button class="btn" id="logoutBtn" onclick="logout()" style="display:none">🚪 Salir</button>
     </div>
   </div>
@@ -42,6 +43,31 @@
     <thead><tr id="hrow"></tr></thead>
     <tbody id="sbody"></tbody>
   </table>
+</div>
+
+<!-- Vista dedicada del rol "booking": ni ve ni toca el horario, solo pide cita. -->
+<div id="bookingView">
+  <div class="booking-box">
+    <div class="booking-head">
+      <span class="title">📅 Agendar una cita</span>
+      <button class="btn" id="logoutBtnBooking" onclick="logout()">🚪 Salir</button>
+    </div>
+    <p class="hint">Elige un horario libre, escribe tu nombre y envía tu solicitud. Quedará pendiente de confirmación.</p>
+    <div id="availabilityList"></div>
+    <form id="bookingForm" class="booking-form">
+      <p id="bkRangeLabel" class="booking-range"></p>
+      <div class="booking-fields">
+        <label>Empieza<select id="bkStart" required></select></label>
+        <label>Duración<select id="bkDuration" required></select></label>
+      </div>
+      <input type="text" id="bkName" placeholder="Tu nombre" required autocomplete="name">
+      <input type="text" id="bkNote" placeholder="Nota (opcional)" autocomplete="off">
+      <div class="modal-actions">
+        <button type="button" class="btn" onclick="closeBookingForm()">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Enviar solicitud</button>
+      </div>
+    </form>
+  </div>
 </div>
 
 <div id="dragTip"></div>
@@ -60,12 +86,38 @@
   </div>
 </div>
 
-<div id="propModal">
+<div id="propModal" class="modal-overlay">
   <div class="modal-box">
     <h2>Propuestas de invitados</h2>
     <div id="propList"></div>
     <div class="modal-actions">
       <button class="btn" onclick="closePropModal()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<div id="eventsModal" class="modal-overlay">
+  <div class="modal-box">
+    <h2>Eventos y citas</h2>
+    <div id="bookingRequestsWrap">
+      <h3 class="modal-subtitle">Solicitudes de cita pendientes</h3>
+      <div id="bookingRequestsList"></div>
+    </div>
+    <h3 class="modal-subtitle">Próximos eventos</h3>
+    <div id="eventsList"></div>
+    <form id="newEventForm">
+      <div class="event-form-row">
+        <input type="date" id="newEvDate" required>
+        <select id="newEvStart" title="Hora de inicio"></select>
+        <select id="newEvEnd" title="Hora de fin"></select>
+      </div>
+      <input type="text" id="newEvTitle" placeholder="Título (ej. Entregar informe)" required>
+      <input type="text" id="newEvNotes" placeholder="Notas (opcional)" autocomplete="off">
+      <label class="event-remind-lbl"><input type="checkbox" id="newEvRemind" checked> Recordarme</label>
+      <button type="submit" class="btn">+ Añadir evento</button>
+    </form>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeEventsModal()">Cerrar</button>
     </div>
   </div>
 </div>
@@ -79,7 +131,7 @@
   </div>
 </div>
 
-<div id="actModal">
+<div id="actModal" class="modal-overlay">
   <div class="modal-box">
     <h2>Actividades</h2>
     <input type="text" id="actSearch" placeholder="🔍 Buscar actividad…" autocomplete="off">
@@ -97,9 +149,12 @@
   </div>
 </div>
 
+<script src="js/api.js"></script>
 <script src="js/auth.js"></script>
 <script src="js/activities.js"></script>
 <script src="js/grid.js"></script>
+<script src="js/events.js"></script>
+<script src="js/booking.js"></script>
 <script src="js/ics.js"></script>
 <script src="js/notify.js"></script>
 <script src="js/google-sync.js"></script>

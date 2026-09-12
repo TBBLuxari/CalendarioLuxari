@@ -82,24 +82,35 @@ async function findOrCreateCalendar(){
   return created.id;
 }
 
-async function clearCalendarEvents(calId){
-  let pageToken;
-  const ids = [];
-  do{
-    const url = new URL(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events`);
-    url.searchParams.set('maxResults', '250');
-    url.searchParams.set('showDeleted', 'false');
-    if(pageToken) url.searchParams.set('pageToken', pageToken);
-    const page = await gFetch(url.toString());
-    (page.items || []).forEach(e => ids.push(e.id));
-    pageToken = page.nextPageToken;
-  } while(pageToken);
-
-  for(let i = 0; i < ids.length; i++){
-    await gFetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events/${ids[i]}?sendUpdates=none`, {method: 'DELETE'});
-    toast(`🗑 Borrando eventos anteriores… ${i + 1}/${ids.length}`);
+// Borra los eventos anteriores que coincidan con el filtro (por defecto,
+// todos). Se usa por separado para los bloques semanales y para los eventos
+// con fecha real, así un "Sincronizar" no borra las citas y viceversa.
+async function clearCalendarEvents(calId, matches = () => true){
+  const items = await fetchAllEvents(calId);
+  const toDelete = items.filter(matches);
+  for(let i = 0; i < toDelete.length; i++){
+    await gFetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events/${toDelete[i].id}?sendUpdates=none`, {method: 'DELETE'});
+    toast(`🗑 Borrando eventos anteriores… ${i + 1}/${toDelete.length}`);
   }
 }
+
+function isWeeklyEvent(e){
+  const kind = e.extendedProperties?.private?.hsKind;
+  return kind === 'weekly' || !kind; // sin "hsKind" = evento de una sincronización anterior a esta función
+}
+function isOneOffEvent(e){
+  return e.extendedProperties?.private?.hsKind === 'oneoff';
+}
+
+// Varios recordatorios en vez de uno solo, para que sea más difícil ignorar
+// el aviso en el celular: dos popups (10 min antes y al inicio) + un correo.
+// El volumen/vibración de la notificación en sí lo controla la app de Google
+// Calendar del celular (Ajustes → Notificaciones), no algo que la API pueda forzar.
+const REMINDER_OVERRIDES = [
+  {method: 'popup', minutes: 10},
+  {method: 'popup', minutes: 0},
+  {method: 'email', minutes: 60},
+];
 
 function toLocalDateTime(date){
   const pad = n => n.toString().padStart(2, '0');
@@ -121,13 +132,14 @@ async function pushEvents(calId){
         start: {dateTime: toLocalDateTime(startDate), timeZone: tz},
         end: {dateTime: toLocalDateTime(endDate), timeZone: tz},
         recurrence: ['RRULE:FREQ=WEEKLY'],
-        reminders: {useDefault: false, overrides: [{method: 'popup', minutes: 0}]},
+        reminders: {useDefault: false, overrides: REMINDER_OVERRIDES},
         // Guardamos el bloque y la definición completa de la actividad (id,
         // color, ícono) como propiedad privada, invisible en la UI de Google
         // Calendar, para poder reconstruir el horario exacto al "traer" desde
         // otro computador — no solo el texto del evento.
         extendedProperties: {
           private: {
+            hsKind: 'weekly',
             hsDay: String(d),
             hsStart: String(b.start),
             hsEnd: String(b.end),
@@ -148,14 +160,42 @@ async function pushEvents(calId){
   return events.length;
 }
 
+// Eventos con fecha real (plazos, entregas, citas) — no recurrentes.
+async function pushOneOffEvents(calId){
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const list = typeof events !== 'undefined' && Array.isArray(events) ? events : [];
+
+  for(let i = 0; i < list.length; i++){
+    const ev = list[i];
+    const [y, m, d] = ev.date.split('-').map(Number);
+    const startDate = new Date(y, m - 1, d, ev.startHour, 0, 0);
+    const endDate = new Date(y, m - 1, d, ev.endHour, 0, 0);
+    await gFetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events?sendUpdates=none`, {
+      method: 'POST',
+      body: JSON.stringify({
+        summary: ev.title,
+        description: ev.notes || '',
+        start: {dateTime: toLocalDateTime(startDate), timeZone: tz},
+        end: {dateTime: toLocalDateTime(endDate), timeZone: tz},
+        reminders: ev.remind ? {useDefault: false, overrides: REMINDER_OVERRIDES} : {useDefault: false, overrides: []},
+        extendedProperties: {private: {hsKind: 'oneoff', hsEventId: ev.id}},
+      }),
+    });
+    toast(`📌 Subiendo eventos con fecha… ${i + 1}/${list.length}`);
+  }
+  return list.length;
+}
+
 async function runSync(){
   gSyncing = true;
   try{
     toast('🔗 Conectando con Google Calendar…');
     const calId = await findOrCreateCalendar();
-    await clearCalendarEvents(calId);
+    await clearCalendarEvents(calId, isWeeklyEvent);
     const count = await pushEvents(calId);
-    toast(`✓ ${count} eventos sincronizados`);
+    await clearCalendarEvents(calId, isOneOffEvent);
+    const evCount = await pushOneOffEvents(calId);
+    toast(`✓ ${count} bloques + ${evCount} eventos sincronizados`);
   }catch(err){
     console.error(err);
     toast('❌ Falló la sincronización con Google Calendar');
@@ -226,14 +266,15 @@ async function runPull(){
   try{
     toast('🔗 Conectando con Google Calendar…');
     const calId = await findOrCreateCalendar();
-    const events = await fetchAllEvents(calId);
+    const gEvents = (await fetchAllEvents(calId)).filter(isWeeklyEvent);
 
     const newData = Array.from({length: 7}, () => Array(24).fill('free'));
-    const newActivities = [DEFAULT_ACTIVITIES.find(a => a.id === 'free')];
+    const freeAct = activityMap.free || { id: 'free', label: 'Libre', icon: '', bg: '#ECECEA', fg: '#BBBBB6' };
+    const newActivities = [{ id: freeAct.id, label: freeAct.label, icon: freeAct.icon || '', bg: freeAct.bg, fg: freeAct.fg }];
     const seenActIds = new Set(['free']);
     let blocksApplied = 0;
 
-    events.forEach(e => {
+    gEvents.forEach(e => {
       const p = e.extendedProperties?.private;
       if(!p || !p.hsAct || p.hsDay === undefined) return;
       let act;
@@ -255,10 +296,8 @@ async function runPull(){
     }
 
     data = newData;
-    activities = newActivities;
-    reindexActivities();
-    saveActivities();
-    saveData();
+    await replaceAllActivities(newActivities);
+    await saveData();
     renderPalette();
     renderAll();
     toast(`✓ Horario traído de Google (${blocksApplied} bloques)`);

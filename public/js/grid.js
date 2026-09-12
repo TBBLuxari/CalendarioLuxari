@@ -1,26 +1,10 @@
-// grid.js — construcción de la cuadrícula, pintado de celdas y marcador de "ahora".
+// grid.js — construcción de la cuadrícula, pintado de celdas y marcador de
+// "ahora". El horario (data) y las propuestas de invitado viven en el
+// backend; este archivo mantiene el caché en memoria y llama a la API.
 
 const days = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
 
-const A = (n, t) => Array(n).fill(t);
-const DEFAULT_SCHEDULE = [
-  [...A(8,'sleep'),'free','free','plan','plan','commute','commute',...A(7,'work'),'commute','meal','winddown'],
-  [...A(4,'sleep'),'free','commute','commute',...A(8,'work'),'commute','commute','personal','plan','personal','personal','sleep','sleep','sleep'],
-  [...A(8,'sleep'),'free','commute',...A(11,'work'),'commute','gym','winddown'],
-  [...A(9,'sleep'),...A(3,'personal'),'prep','prep',...A(8,'personal'),'gym','winddown'],
-  [...A(8,'sleep'),'free','free','plan','plan','commute','commute',...A(7,'work'),'commute','gym','winddown'],
-  [...A(9,'sleep'),'personal','personal','prep','prep',...A(10,'personal'),'winddown'],
-  [...A(9,'sleep'),'personal','personal','prep','prep','prep',...A(4,'personal'),'plan','plan','personal','winddown','winddown','sleep'],
-];
-
-const DATA_KEY = 'hs_data';
-
-function loadData(){
-  try{ const s = localStorage.getItem(DATA_KEY); if(s) return JSON.parse(s); }catch(e){}
-  return DEFAULT_SCHEDULE.map(d => [...d]);
-}
-
-let data = loadData();
+let data = null;
 let sel = 'sleep';
 let drag = false;
 let dragStart = null;
@@ -29,6 +13,10 @@ const tbody = document.getElementById('sbody');
 const hrow = document.getElementById('hrow');
 const cells = Array.from({length:7}, () => []);
 const timeCells = [];
+
+async function fetchSchedule(){
+  data = await api('/schedule');
+}
 
 function buildGrid(){
   hrow.innerHTML = '';
@@ -70,7 +58,7 @@ function buildGrid(){
       });
       td.addEventListener('mouseenter', () => { if(drag) paintRange(d, h); });
       td.addEventListener('dblclick', () => {
-        if(currentRole === 'guest'){ removeProposal(d, h); return; }
+        if(currentRole === 'guest'){ removeOwnProposal(d, h); return; }
         data[d][h] = 'free'; applyCell(td, 'free');
       });
     }
@@ -111,23 +99,26 @@ function renderAll(){
   for(let d = 0; d < 7; d++) for(let h = 0; h < 24; h++) applyCell(cells[d][h], data[d][h]);
 }
 
-function resetAll(){
-  if(!confirm('¿Restablecer al horario inicial?')) return;
-  data = DEFAULT_SCHEDULE.map(d => [...d]);
+async function resetAll(){
+  if(!confirm('¿Descartar los cambios sin guardar y recargar el horario guardado en el servidor?')) return;
+  await fetchSchedule();
   renderAll();
-  toast('Restablecido');
+  toast('↺ Horario recargado desde el servidor');
 }
 
 function clearAll(){
   if(!confirm('¿Vaciar todo el horario? Todas las celdas quedarán en "Libre".')) return;
-  data = Array.from({length:7}, () => A(24, 'free'));
+  data = Array.from({length:7}, () => Array(24).fill('free'));
   renderAll();
-  toast('Horario vaciado');
 }
 
-function saveData(){
-  try{ localStorage.setItem(DATA_KEY, JSON.stringify(data)); }catch(e){}
-  toast('✓ Guardado');
+async function saveData(){
+  try{
+    await api('/schedule', { method: 'PUT', body: data });
+    toast('✓ Guardado');
+  }catch(e){
+    toast('❌ No se pudo guardar: ' + e.message);
+  }
 }
 
 /* TOUCH */
@@ -155,10 +146,7 @@ function initTouch(){
   document.addEventListener('touchend', () => { endDrag(); lastTouchTd = null; });
 }
 
-/* AVISO DE ARRASTRE
-   Muestra el rango de horas real y la duración mientras se pinta, para que
-   sea evidente que, p. ej., pintar las celdas 11-12-13-14 da 11:00–15:00
-   (4 h) y no 11:00–14:00 como sugiere contar solo las etiquetas tocadas. */
+/* AVISO DE ARRASTRE */
 const dragTip = document.getElementById('dragTip');
 function showDragTip(d, fromH, toH){
   const start = fromH.toString().padStart(2, '0') + ':00';
@@ -202,35 +190,38 @@ function updateNow(){
 
 /* PROPUESTAS DE INVITADOS
    Un invitado solo puede "proponer" actividades sobre celdas libres — no
-   modifica data[] directamente. La propuesta se guarda aparte y el
-   propietario la aprueba o rechaza desde el panel 📩 Propuestas. */
-const PROPOSALS_KEY = 'hs_guest_proposals';
+   modifica el horario directamente. El propietario aprueba o rechaza desde
+   el panel 📩 Propuestas. Todo vive ahora en el backend (tabla proposals). */
+let proposals = [];
 
-function loadProposals(){
-  try{ const s = localStorage.getItem(PROPOSALS_KEY); if(s) return JSON.parse(s); }catch(e){}
-  return [];
-}
-function saveProposals(){
-  try{ localStorage.setItem(PROPOSALS_KEY, JSON.stringify(proposals)); }catch(e){}
-}
-let proposals = loadProposals();
-
-function addProposal(d, h, actId){
-  proposals = proposals.filter(p => !(p.d === d && p.h === h));
-  proposals.push({d, h, actId});
-  saveProposals();
+async function fetchProposals(){
+  proposals = await api('/proposals');
   renderProposalOverlay();
   updateProposalBadges();
 }
 
-function removeProposal(d, h){
-  const before = proposals.length;
-  proposals = proposals.filter(p => !(p.d === d && p.h === h));
-  if(proposals.length !== before){
-    saveProposals();
+async function addProposal(d, h, actId){
+  try{
+    const p = await api('/proposals', { method: 'POST', body: { d, h, actId } });
+    proposals = proposals.filter(x => !(x.d === d && x.h === h));
+    proposals.push(p);
     renderProposalOverlay();
     updateProposalBadges();
+  }catch(e){
+    toast('❌ ' + e.message);
   }
+}
+
+async function removeProposal(id){
+  await api('/proposals/' + id, { method: 'DELETE' });
+  proposals = proposals.filter(p => p.id !== id);
+  renderProposalOverlay();
+  updateProposalBadges();
+}
+
+function removeOwnProposal(d, h){
+  const p = proposals.find(x => x.d === d && x.h === h);
+  if(p) removeProposal(p.id);
 }
 
 function applyProposalCell(td, actId){
@@ -242,6 +233,7 @@ function applyProposalCell(td, actId){
 }
 
 function renderProposalOverlay(){
+  if(!data) return;
   document.querySelectorAll('td.proposal-cell').forEach(td => {
     td.classList.remove('proposal-cell');
     const d = +td.dataset.d, h = +td.dataset.h;
@@ -253,13 +245,12 @@ function renderProposalOverlay(){
   });
 }
 
-function approveProposal(p){
-  if(data[p.d][p.h] === 'free'){
-    data[p.d][p.h] = p.actId;
-    applyCell(cells[p.d][p.h], p.actId);
-    saveData();
-  }
-  removeProposal(p.d, p.h);
+async function approveProposal(p){
+  await api('/proposals/' + p.id + '/approve', { method: 'POST' });
+  await fetchSchedule();
+  proposals = proposals.filter(x => x.id !== p.id);
+  renderAll();
+  updateProposalBadges();
 }
 
 function updateProposalBadges(){
@@ -290,10 +281,10 @@ function renderPropList(){
     label.textContent = `${days[p.d]} ${String(p.h).padStart(2, '0')}:00–${String(p.h + 1).padStart(2, '0')}:00 → ${(a.icon ? a.icon + ' ' : '') + a.label}`;
     const ok = document.createElement('button');
     ok.className = 'btn'; ok.textContent = '✓ Aprobar';
-    ok.onclick = () => { approveProposal(p); renderPropList(); };
+    ok.onclick = async () => { await approveProposal(p); renderPropList(); };
     const no = document.createElement('button');
     no.className = 'btn'; no.textContent = '✕ Rechazar';
-    no.onclick = () => { removeProposal(p.d, p.h); renderPropList(); };
+    no.onclick = async () => { await removeProposal(p.id); renderPropList(); };
     row.append(label, ok, no);
     list.appendChild(row);
   });
