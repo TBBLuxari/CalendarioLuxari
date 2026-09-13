@@ -16,7 +16,10 @@
     <div class="row1-side"></div>
     <div class="row1-center">
       <span class="role-badge" id="roleBadge"></span>
+      <button class="btn owner-only" onclick="shiftWeek(-1)" title="Semana anterior">◀</button>
       <span class="month-label" id="monthLabel"></span>
+      <button class="btn owner-only" onclick="shiftWeek(1)" title="Semana siguiente">▶</button>
+      <button class="btn owner-only" id="todayBtn" onclick="resetToCurrentWeek()" title="Volver a la semana actual" style="display:none">Hoy</button>
     </div>
     <div class="ctrls">
       <div class="dropdown" id="actPickerDD">

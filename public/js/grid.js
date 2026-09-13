@@ -28,8 +28,39 @@ function mondayOfCurrentWeek(){
   monday.setHours(0, 0, 0, 0);
   return monday;
 }
-function updateHeaderDates(){
+// El propietario puede navegar semanas (◀ ▶ junto al mes) para ver eventos y
+// citas confirmadas más adelante — ver renderOverlays(). El horario que se
+// pinta sigue siendo siempre la misma plantilla recurrente; solo cambian las
+// fechas del encabezado y qué eventos con fecha real se superponen.
+let weekOffset = 0;
+
+function getViewedMonday(){
   const monday = mondayOfCurrentWeek();
+  monday.setDate(monday.getDate() + weekOffset * 7);
+  return monday;
+}
+
+function shiftWeek(delta){
+  weekOffset += delta;
+  updateHeaderDates();
+  renderOverlays();
+  updateNow();
+  updateWeekNavButtons();
+}
+function resetToCurrentWeek(){
+  weekOffset = 0;
+  updateHeaderDates();
+  renderOverlays();
+  updateNow();
+  updateWeekNavButtons();
+}
+function updateWeekNavButtons(){
+  const btn = document.getElementById('todayBtn');
+  if(btn) btn.style.display = weekOffset === 0 ? 'none' : '';
+}
+
+function updateHeaderDates(){
+  const monday = getViewedMonday();
   for(let i = 0; i < 7; i++){
     const th = hrow.children[i + 1];
     const dateSpan = th?.querySelector('.day-date');
@@ -232,6 +263,7 @@ function updateNow(){
     const l = el.querySelector('.now-line');
     if(l) l.remove();
   });
+  if(weekOffset !== 0) return; // viendo otra semana: no marcamos "ahora" en ella
 
   const now = new Date();
   const d = (now.getDay() + 6) % 7; // getDay(): 0=domingo → nuestro índice: 0=lunes
@@ -432,7 +464,7 @@ function renderOverlays(){
   });
 
   if(currentRole === 'owner' && typeof events !== 'undefined' && events.length){
-    const monday = mondayOfCurrentWeek();
+    const monday = getViewedMonday();
     const weekDates = Array.from({ length: 7 }, (_, i) => {
       const dd = new Date(monday); dd.setDate(monday.getDate() + i);
       return `${dd.getFullYear()}-${String(dd.getMonth() + 1).padStart(2, '0')}-${String(dd.getDate()).padStart(2, '0')}`;
