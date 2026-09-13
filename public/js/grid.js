@@ -103,7 +103,7 @@ function buildGrid(){
       // veces por la misma celda mientras arrastra (ver toggleDraft).
       td.addEventListener('mouseenter', () => { if(drag && currentRole !== 'guest') paintRange(d, h); });
       td.addEventListener('dblclick', () => {
-        if(currentRole === 'guest'){ removeOwnProposal(d, h); return; }
+        if(currentRole === 'guest') return; // el invitado destoca con un solo toque (toggleDraft), no ve propuestas ya enviadas
         data[d][h] = 'free'; applyCell(td, 'free');
       });
     }
@@ -120,7 +120,6 @@ function paint(d, h){
       return;
     }
     if(data[d][h] !== 'free'){ toast('Esa hora ya está ocupada — solo puedes proponer horario en celdas libres'); return; }
-    if(proposals.some(p => p.d === d && p.h === h)){ toast('Ya enviaste una propuesta ahí — bórrala con doble clic/toque si quieres cambiarla'); return; }
     toggleDraft(d, h);
     return;
   }
@@ -333,7 +332,12 @@ async function submitDraft(){
     if(sent) okCount++;
     else renderDraftCell(item.d, item.h); // falló (ej. ya no está libre): la deja visible para reintentar
   }
-  if(okCount > 0) toast(`✓ ${okCount} propuesta(s) enviada(s)`);
+  if(okCount === 0) return;
+  toast(`✓ ${okCount} propuesta(s) enviada(s) — gracias, ${guestName}`);
+  // La sesión de invitado se cierra sola tras enviar: así el enlace/contraseña
+  // compartida queda lista para que la siguiente persona empiece de cero, sin
+  // arrastrar el nombre ni ver lo que ya se propuso (ver server/src/routes/proposals.routes.js).
+  setTimeout(() => logout(), 1800);
 }
 
 /* PROPUESTAS DE INVITADOS
@@ -379,11 +383,6 @@ async function removeProposal(id){
   updateProposalBadges();
 }
 
-function removeOwnProposal(d, h){
-  const p = proposals.find(x => x.d === d && x.h === h);
-  return p ? removeProposal(p.id) : Promise.resolve();
-}
-
 function applyProposalCell(td, actId){
   const a = activityMap[actId] || activityMap.free;
   td.style.background = a.bg;
@@ -406,11 +405,30 @@ function renderProposalOverlay(){
 }
 
 async function approveProposal(p){
-  await api('/proposals/' + p.id + '/approve', { method: 'POST' });
+  try{
+    await api('/proposals/' + p.id + '/approve', { method: 'POST' });
+  }catch(e){
+    toast('❌ ' + e.message); // ej. otra propuesta ya ocupó esa hora — sigue pendiente para que la rechaces
+    return false;
+  }
   await fetchSchedule();
   proposals = proposals.filter(x => x.id !== p.id);
   renderAll();
   updateProposalBadges();
+  return true;
+}
+
+async function approveAllProposals(){
+  const items = [...proposals];
+  if(items.length === 0) return;
+  let okCount = 0, failCount = 0;
+  for(const p of items){
+    // proposals puede haber cambiado (por conflicto de horario) en cada vuelta
+    if(!proposals.some(x => x.id === p.id)) continue;
+    if(await approveProposal(p)) okCount++; else failCount++;
+  }
+  renderPropList();
+  toast(failCount === 0 ? `✓ ${okCount} propuesta(s) aprobada(s)` : `✓ ${okCount} aprobada(s), ${failCount} con conflicto de horario (quedaron pendientes)`);
 }
 
 function updateProposalBadges(){

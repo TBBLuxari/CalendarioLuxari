@@ -285,8 +285,10 @@ async function startForRole(role){
     return;
   }
 
-  const tasks = [fetchActivities(), fetchSchedule(), fetchProposals(), fetchGuestRules()];
-  if(role === 'owner') tasks.push(fetchEvents(), fetchBookingRequests());
+  // El invitado no trae /proposals: no ve la cola pendiente (ni la suya ni
+  // la de otros invitados) — ver server/src/routes/proposals.routes.js.
+  const tasks = [fetchActivities(), fetchSchedule(), fetchGuestRules()];
+  if(role === 'owner') tasks.push(fetchProposals(), fetchEvents(), fetchBookingRequests());
   await Promise.all(tasks);
 
   if(role === 'guest'){

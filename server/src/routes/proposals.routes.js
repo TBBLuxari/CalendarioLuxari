@@ -44,7 +44,12 @@ router.put('/rules', requireAuth, requireRole('owner'), async (req, res) => {
   res.json(rules);
 });
 
-router.get('/', requireAuth, requireRole('owner', 'guest'), async (req, res) => {
+// Solo el propietario ve la cola de propuestas pendientes — un invitado no
+// ve lo que otros invitados (o él mismo, en otra sesión) ya propusieron, así
+// varias personas pueden usar la misma contraseña de invitado sin verse ni
+// bloquearse entre sí. Nada de esto es "real" hasta que el propietario lo
+// aprueba (ver POST /:id/approve).
+router.get('/', requireAuth, requireRole('owner'), async (req, res) => {
   const { rows } = await db.execute('SELECT * FROM proposals ORDER BY created_at ASC');
   res.json(rows.map(r => ({ id: r.id, d: r.day, h: r.hour, actId: r.activity_id, proposedBy: r.proposed_by || '' })));
 });
@@ -71,7 +76,10 @@ router.post('/', requireAuth, requireRole('guest'), async (req, res) => {
     }
   }
 
-  await db.execute({ sql: 'DELETE FROM proposals WHERE day = ? AND hour = ?', args: [d, h] });
+  // Ya no se borra una propuesta existente en la misma celda: varias
+  // personas comparten la contraseña de invitado y pueden proponer la misma
+  // hora libre sin pisarse — el propietario decide cuál aprobar al ver todas
+  // juntas en su panel.
   const id = makeId();
   const proposedByClean = (proposedBy || '').toString().trim().slice(0, 60);
   await db.execute({
@@ -86,9 +94,7 @@ router.post('/', requireAuth, requireRole('guest'), async (req, res) => {
   notifyOwner(`📩 ${who} propone ${DAY_NAMES[d]} ${pad2(h)}:00–${pad2(h + 1)}:00 → ${label}`);
 });
 
-router.delete('/:id', requireAuth, requireRole('owner', 'guest'), async (req, res) => {
-  // El invitado solo puede retirar SU propia propuesta pendiente (no hay más
-  // control de identidad que el rol, igual que en la versión estática).
+router.delete('/:id', requireAuth, requireRole('owner'), async (req, res) => {
   await db.execute({ sql: 'DELETE FROM proposals WHERE id = ?', args: [req.params.id] });
   res.json({ ok: true });
 });
@@ -100,13 +106,17 @@ router.post('/:id/approve', requireAuth, requireRole('owner'), async (req, res) 
 
   const scheduleRow = await db.execute({ sql: 'SELECT value FROM app_state WHERE key = ?', args: ['schedule'] });
   const schedule = JSON.parse(scheduleRow.rows[0].value);
-  if(schedule[p.day][p.hour] === 'free'){
-    schedule[p.day][p.hour] = p.activity_id;
-    await db.execute({
-      sql: 'UPDATE app_state SET value = ? WHERE key = ?',
-      args: [JSON.stringify(schedule), 'schedule'],
-    });
+  // Si dos invitados propusieron la misma hora, aprobar la primera la ocupa
+  // — la segunda ya no puede aplicarse en silencio: se lo decimos al
+  // propietario y la dejamos pendiente para que la rechace a mano.
+  if(schedule[p.day][p.hour] !== 'free'){
+    return res.status(409).json({ error: 'Esa hora ya no está libre (probablemente aprobaste otra propuesta ahí) — rechaza esta si ya no aplica' });
   }
+  schedule[p.day][p.hour] = p.activity_id;
+  await db.execute({
+    sql: 'UPDATE app_state SET value = ? WHERE key = ?',
+    args: [JSON.stringify(schedule), 'schedule'],
+  });
   await db.execute({ sql: 'DELETE FROM proposals WHERE id = ?', args: [p.id] });
   res.json({ ok: true });
 });
