@@ -109,7 +109,7 @@ function buildGrid(){
     }
   }
   document.addEventListener('mouseup', endDrag);
-  renderProposalOverlay();
+  renderOverlays();
 }
 
 function paint(d, h){
@@ -368,7 +368,7 @@ let guestRules = { startHour: 0, endHour: 24, maxHours: null };
 
 async function fetchProposals(){
   proposals = await api('/proposals');
-  renderProposalOverlay();
+  renderOverlays();
   updateProposalBadges();
 }
 
@@ -386,7 +386,7 @@ async function addProposal(d, h, actId){
     const p = await api('/proposals', { method: 'POST', body: { d, h, actId, proposedBy: guestName } });
     proposals = proposals.filter(x => !(x.d === d && x.h === h));
     proposals.push(p);
-    renderProposalOverlay();
+    renderOverlays();
     updateProposalBadges();
     return true;
   }catch(e){
@@ -398,7 +398,7 @@ async function addProposal(d, h, actId){
 async function removeProposal(id){
   await api('/proposals/' + id, { method: 'DELETE' });
   proposals = proposals.filter(p => p.id !== id);
-  renderProposalOverlay();
+  renderOverlays();
   updateProposalBadges();
 }
 
@@ -410,17 +410,50 @@ function applyProposalCell(td, actId){
   td.classList.add('proposal-cell');
 }
 
-function renderProposalOverlay(){
+// Repinta, en orden, las tres capas que pueden cubrir una celda: el horario
+// real (base), las propuestas de invitado pendientes (solo sobre "Libre"), y
+// por último los eventos con fecha real que caigan en la semana que se está
+// mostrando — un evento gana siempre, porque es lo más específico para ese
+// día en concreto (ver mondayOfCurrentWeek/updateHeaderDates). Así, en cuanto
+// apruebas algo (propuesta o cita), se ve reflejado aquí mismo, en tu
+// calendario de siempre — no en una lista aparte que hay que ir a revisar.
+function renderOverlays(){
   if(!data) return;
-  document.querySelectorAll('td.proposal-cell').forEach(td => {
-    td.classList.remove('proposal-cell');
+  document.querySelectorAll('td.sc.proposal-cell, td.sc.event-cell').forEach(td => {
+    td.classList.remove('proposal-cell', 'event-cell', 'event-booking', 'event-manual');
+    td.removeAttribute('title');
     const d = +td.dataset.d, h = +td.dataset.h;
     applyCell(td, data[d][h]);
   });
+
   proposals.forEach(p => {
     const td = cells[p.d]?.[p.h];
     if(td && data[p.d][p.h] === 'free') applyProposalCell(td, p.actId);
   });
+
+  if(currentRole === 'owner' && typeof events !== 'undefined' && events.length){
+    const monday = mondayOfCurrentWeek();
+    const weekDates = Array.from({ length: 7 }, (_, i) => {
+      const dd = new Date(monday); dd.setDate(monday.getDate() + i);
+      return `${dd.getFullYear()}-${String(dd.getMonth() + 1).padStart(2, '0')}-${String(dd.getDate()).padStart(2, '0')}`;
+    });
+    events.forEach(ev => {
+      const dayIdx = weekDates.indexOf(ev.date);
+      if(dayIdx === -1) return; // esta semana no incluye la fecha del evento
+      const isBooking = ev.source === 'booking';
+      for(let h = ev.startHour; h < ev.endHour; h++){
+        const td = cells[dayIdx]?.[h];
+        if(!td) continue;
+        td.classList.add('event-cell', isBooking ? 'event-booking' : 'event-manual');
+        // Estilo en línea (no solo clase): así gana sobre el color de fondo
+        // que applyCell ya le puso un momento antes para la actividad base.
+        td.style.background = isBooking ? '#ffd7e6' : '#ffe9a8';
+        td.style.color = isBooking ? '#7a1f3d' : '#5c4a00';
+        td.textContent = (isBooking ? '❤️ ' : '📌 ') + ev.title;
+        if(ev.notes) td.title = ev.notes;
+      }
+    });
+  }
 }
 
 async function approveProposal(p){

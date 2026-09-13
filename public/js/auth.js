@@ -47,7 +47,7 @@ function applyRolePermissions(){
   const logoutBtn = document.getElementById('logoutBtn');
   if(logoutBtn) logoutBtn.style.display = currentRole ? '' : 'none';
 
-  if(typeof renderProposalOverlay === 'function') renderProposalOverlay();
+  if(typeof renderOverlays === 'function') renderOverlays();
   if(typeof updateProposalBadges === 'function') updateProposalBadges();
 }
 

@@ -1,6 +1,7 @@
 // events.js — eventos con fecha real, no recurrentes (plazos, entregas,
-// citas ya confirmadas). Se editan desde el modal #eventsModal, que también
-// muestra las solicitudes de cita pendientes (ver booking.js).
+// citas ya confirmadas). Se editan desde el modal #eventsModal. Las
+// solicitudes de cita pendientes tienen su propio modal (ver booking.js) —
+// una vez aprobadas, se vuelven un evento como cualquier otro y aparecen acá.
 
 let events = [];
 
@@ -18,21 +19,18 @@ async function fetchEvents(){
   if(currentRole !== 'owner') return;
   events = await api('/events');
   updateEventsBadge();
+  if(typeof renderOverlays === 'function') renderOverlays();
 }
 
 function updateEventsBadge(){
   const btn = document.getElementById('eventsBtn');
   if(!btn) return;
   const upcoming = events.filter(e => e.date >= todayISO()).length;
-  const pending = (typeof bookingRequests !== 'undefined') ? bookingRequests.filter(r => r.status === 'pending').length : 0;
-  const n = pending; // el badge resalta lo que necesita acción tuya
   btn.textContent = `🗓️ Eventos (${upcoming})`;
-  btn.classList.toggle('on', pending > 0);
 }
 
 function openEventsModal(){
   renderEventsList();
-  if(typeof renderBookingRequestsSection === 'function') renderBookingRequestsSection();
   document.getElementById('eventsModal').classList.add('show');
 }
 function closeEventsModal(){
@@ -62,6 +60,7 @@ function renderEventsList(){
       events = events.filter(e => e.id !== ev.id);
       renderEventsList();
       updateEventsBadge();
+      renderOverlays();
     };
     row.append(info, del);
     list.appendChild(row);
@@ -112,6 +111,7 @@ if(newEventForm){
       events.push(created);
       renderEventsList();
       updateEventsBadge();
+      renderOverlays();
       e.target.reset();
       document.getElementById('newEvDate').value = todayISO();
     }catch(err){

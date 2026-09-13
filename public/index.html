@@ -55,6 +55,7 @@
         <button class="btn" onclick="toggleDropdown('settingsPanel')">⚙️</button>
         <div class="dropdown-panel dropdown-panel-menu" id="settingsPanel">
           <button class="btn owner-only" id="propBtn" onclick="openPropModal()">📩 Propuestas (0)</button>
+          <button class="btn owner-only" id="citasBtn" onclick="openCitasModal()">❤️ Citas (0)</button>
           <button class="btn owner-only" id="eventsBtn" onclick="openEventsModal()">🗓️ Eventos (0)</button>
           <button class="btn guest-only" onclick="copyProposalsText()">📋 Copiar propuestas</button>
           <button class="btn" id="notifBtn" onclick="toggleNotifs()">🔕 Avisos</button>
@@ -135,17 +136,20 @@
         <label>Duración<select id="bkDuration" required></select></label>
       </div>
       <select id="bkType">
+        <option value="🌆 Salida">🌆 Salida</option>
         <option value="☕ Café">☕ Café</option>
         <option value="🍽️ Comer algo">🍽️ Comer algo</option>
+        <option value="🎬 Cine">🎬 Cine</option>
         <option value="🚶 Caminar">🚶 Caminar</option>
-        <option value="🎬 Ver película">🎬 Ver película</option>
         <option value="😏 Quedarnos en casa">😏 Quedarnos en casa</option>
-        <option value="🎲 Sorpréndeme">🎲 Sorpréndeme</option>
+        <option value="__other__">✏️ Otro…</option>
       </select>
+      <input type="text" id="bkTypeOther" placeholder="¿Qué plan quieres proponer?" hidden>
       <input type="text" id="bkBudget" placeholder="Presupuesto (opcional, ej. $50.000)" autocomplete="off">
       <select id="bkPayment">
-        <option value="💳 Dinero">💳 Dinero</option>
-        <option value="🎁 En especie">🎁 En especie</option>
+        <option value="💵 Efectivo">💵 Efectivo</option>
+        <option value="💳 Tarjeta">💳 Tarjeta</option>
+        <option value="📱 Nequi">📱 Nequi</option>
         <option value="😏 Con el cuerpo">😏 Con el cuerpo</option>
       </select>
       <input type="text" id="bkName" placeholder="Tu nombre" required autocomplete="name">
@@ -185,14 +189,19 @@
   </div>
 </div>
 
+<div id="citasModal" class="modal-overlay">
+  <div class="modal-box">
+    <h2>❤️ Solicitudes de cita</h2>
+    <div id="bookingRequestsList"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeCitasModal()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <div id="eventsModal" class="modal-overlay">
   <div class="modal-box">
-    <h2>Eventos y citas</h2>
-    <div id="bookingRequestsWrap">
-      <h3 class="modal-subtitle">Solicitudes de cita pendientes</h3>
-      <div id="bookingRequestsList"></div>
-    </div>
-    <h3 class="modal-subtitle">Próximos eventos</h3>
+    <h2>🗓️ Eventos</h2>
     <div id="eventsList"></div>
     <form id="newEventForm">
       <div class="event-form-row">

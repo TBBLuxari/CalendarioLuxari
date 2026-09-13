@@ -200,6 +200,12 @@ td.sc.proposal-cell::after{content:'🕓';position:absolute;top:0;right:1px;font
 td.sc.draft-cell{outline:2px dotted var(--now);outline-offset:-2px;opacity:.75;}
 td.sc.draft-cell::after{content:'✏️';position:absolute;top:0;right:1px;font-size:8px;line-height:1;}
 
+/* Eventos con fecha real (plazos/citas ya confirmadas) que caen en la semana
+   visible: se ven directo en tu horario de siempre, no solo en una lista
+   aparte — ver renderOverlays() en grid.js. Los colores van en línea (JS),
+   este borde es solo para que resalten un poco sobre la actividad base. */
+td.sc.event-cell{outline:2px solid rgba(0,0,0,.2);outline-offset:-2px;font-weight:700;}
+
 #guestNameInput{font:inherit;font-size:11px;padding:5px 9px;border-radius:7px;border:1px solid var(--btn-border);background:var(--btn-bg);color:var(--text);width:110px;}
 
 /* Barra flotante con las celdas marcadas por el invitado, pendientes de
@@ -225,7 +231,6 @@ body.role-booking #actPickerDD,body.role-booking #settingsDD{display:none;}
 /* MODAL DE EVENTOS Y CITAS */
 .modal-subtitle{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--text2);margin:14px 0 8px;}
 .modal-subtitle:first-of-type{margin-top:0;}
-#bookingRequestsWrap:has(#bookingRequestsList .act-empty){display:none;}
 .event-row{align-items:flex-start;}
 .event-info{flex:1;font-size:12px;line-height:1.5;}
 .event-when{font-size:10px;color:var(--text2);}

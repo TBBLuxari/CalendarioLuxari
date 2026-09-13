@@ -73,7 +73,17 @@ function openBookingModal(d, h, date, range){
 
   document.getElementById('bkDateLabel').textContent = `${fmtDateLong(date)} — entre ${String(range.startHour).padStart(2,'0')}:00 y ${String(range.endHour).padStart(2,'0')}:00`;
   document.getElementById('bkName').value = bookingName;
+  document.getElementById('bkType').value = '🌆 Salida';
+  document.getElementById('bkTypeOther').value = '';
+  document.getElementById('bkTypeOther').hidden = true;
   modal.classList.add('show');
+}
+
+const bkTypeSel = document.getElementById('bkType');
+if(bkTypeSel){
+  bkTypeSel.addEventListener('change', () => {
+    document.getElementById('bkTypeOther').hidden = bkTypeSel.value !== '__other__';
+  });
 }
 
 function closeBookingModal(){
@@ -90,7 +100,8 @@ if(bookingModalForm){
     const duration = Number(document.getElementById('bkDuration').value);
     const endHour = Math.min(startHour + duration, Number(modal.dataset.maxEnd));
     const requesterName = document.getElementById('bkName').value.trim();
-    const dateType = document.getElementById('bkType').value;
+    const typeSel = document.getElementById('bkType').value;
+    const dateType = typeSel === '__other__' ? document.getElementById('bkTypeOther').value.trim() : typeSel;
     const budget = document.getElementById('bkBudget').value.trim();
     const paymentMethod = document.getElementById('bkPayment').value;
     const note = document.getElementById('bkNote').value.trim();
@@ -109,11 +120,28 @@ if(bookingModalForm){
   });
 }
 
-/* ---------- Panel del propietario (dentro de #eventsModal) ---------- */
+/* ---------- Panel del propietario: ❤️ Citas (modal propio) ---------- */
 
 async function fetchBookingRequests(){
   if(currentRole !== 'owner') return;
   bookingRequests = await api('/booking-requests');
+  updateCitasBadge();
+}
+
+function updateCitasBadge(){
+  const btn = document.getElementById('citasBtn');
+  if(!btn) return;
+  const pending = bookingRequests.filter(r => r.status === 'pending').length;
+  btn.textContent = `❤️ Citas (${pending})`;
+  btn.classList.toggle('on', pending > 0);
+}
+
+function openCitasModal(){
+  renderBookingRequestsSection();
+  document.getElementById('citasModal').classList.add('show');
+}
+function closeCitasModal(){
+  document.getElementById('citasModal').classList.remove('show');
 }
 
 function renderBookingRequestsSection(){
@@ -137,12 +165,13 @@ function renderBookingRequestsSection(){
     const ok = document.createElement('button');
     ok.className = 'btn'; ok.textContent = '✓ Aprobar';
     ok.onclick = async () => {
+      // aprobar crea un evento real (ver backend) — fetchEvents() ya refresca
+      // la cuadrícula (renderOverlays), así la ves de una en tu calendario.
       await api('/booking-requests/' + r.id + '/approve', { method: 'POST' });
       await Promise.all([fetchBookingRequests(), fetchEvents()]);
       renderBookingRequestsSection();
       renderEventsList();
-      updateEventsBadge();
-      toast('✓ Cita confirmada');
+      toast('✓ Cita confirmada — ya aparece en tu horario');
     };
     const no = document.createElement('button');
     no.className = 'btn'; no.textContent = '✕ Rechazar';
@@ -150,7 +179,6 @@ function renderBookingRequestsSection(){
       await api('/booking-requests/' + r.id + '/reject', { method: 'POST' });
       await fetchBookingRequests();
       renderBookingRequestsSection();
-      updateEventsBadge();
     };
     row.append(label, ok, no);
     box.appendChild(row);
