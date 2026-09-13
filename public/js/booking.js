@@ -140,10 +140,40 @@ function updateCitasBadge(){
 
 function openCitasModal(){
   renderBookingRequestsSection();
+  renderConfirmedEventsSection();
   document.getElementById('citasModal').classList.add('show');
 }
 function closeCitasModal(){
   document.getElementById('citasModal').classList.remove('show');
+}
+
+// Eventos ya confirmados (citas aprobadas y cualquier otro evento con fecha)
+// con botón de borrar de una — sin esto, la única forma era doble clic sobre
+// la celda exacta viendo la semana exacta, muy poco descubrible.
+function renderConfirmedEventsSection(){
+  const box = document.getElementById('confirmedEventsList');
+  if(!box) return;
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const upcoming = events.filter(e => e.date >= todayStr).sort((a, b) => (a.date + a.startHour) < (b.date + b.startHour) ? -1 : 1);
+  box.innerHTML = '';
+  if(upcoming.length === 0){
+    box.innerHTML = '<div class="act-empty">No tienes citas ni eventos próximos.</div>';
+    return;
+  }
+  upcoming.forEach(ev => {
+    const row = document.createElement('div');
+    row.className = 'act-row';
+    const label = document.createElement('span');
+    label.style.cssText = 'flex:1;font-size:12px;';
+    const icon = ev.source === 'booking' ? '❤️' : '📌';
+    label.innerHTML = `${icon} <b>${escapeHtml(ev.title)}</b> — ${fmtDateLong(ev.date)} ${String(ev.startHour).padStart(2,'0')}:00–${String(ev.endHour).padStart(2,'0')}:00`
+      + (ev.notes ? `<br><span class="event-when">${escapeHtml(ev.notes)}</span>` : '');
+    const del = document.createElement('button');
+    del.className = 'btn act-del'; del.textContent = '🗑';
+    del.onclick = async () => { await deleteEvent(ev.id); renderConfirmedEventsSection(); };
+    row.append(label, del);
+    box.appendChild(row);
+  });
 }
 
 function renderBookingRequestsSection(){

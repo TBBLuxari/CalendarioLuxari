@@ -462,14 +462,10 @@ function getViewedWeekDates(){
   });
 }
 
-async function deleteEventFromCell(dayIdx, h){
+function deleteEventFromCell(dayIdx, h){
   const dateStr = getViewedWeekDates()[dayIdx];
   const ev = events.find(e => e.date === dateStr && h >= e.startHour && h < e.endHour);
-  if(!ev) return;
-  if(!confirm(`¿Borrar "${ev.title}"?`)) return;
-  await api('/events/' + ev.id, { method: 'DELETE' });
-  events = events.filter(e => e.id !== ev.id);
-  renderOverlays();
+  if(ev) deleteEvent(ev.id); // ver events.js — mismo confirm+borrado que usa el listado de ❤️ Citas
 }
 
 function renderOverlays(){
