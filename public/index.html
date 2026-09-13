@@ -46,6 +46,9 @@
       <input type="text" id="guestNameInput" class="guest-only" placeholder="Tu nombre" maxlength="60" autocomplete="off">
       <button class="btn guest-only" id="guestPaintBtn" onclick="toggleGuestPaintMode()" title="Actívalo para marcar celdas; apágalo para desplazarte sin proponer nada">🖌️ Modo proponer: OFF</button>
 
+      <input type="text" id="bookingNameInput" class="booking-only" placeholder="Tu nombre" maxlength="60" autocomplete="off">
+      <button class="btn booking-only" id="bookingPickBtn" onclick="toggleBookingPickMode()" title="Actívalo para elegir una casilla libre; apágalo para desplazarte sin agendar nada">📅 Modo agendar: OFF</button>
+
       <button class="btn" id="tbtn" onclick="toggleTheme()">🌙</button>
 
       <div class="dropdown" id="settingsDD">
@@ -118,25 +121,37 @@
   <button class="btn btn-primary" onclick="submitDraft()">✓ Enviar propuestas</button>
 </div>
 
-<!-- Vista dedicada del rol "booking": ni ve ni toca el horario, solo pide cita. -->
-<div id="bookingView">
-  <div class="booking-box">
-    <div class="booking-head">
-      <span class="title">📅 Agendar una cita</span>
-      <button class="btn" id="logoutBtnBooking" onclick="logout()">🚪 Salir</button>
-    </div>
-    <p class="hint">Elige un horario libre, escribe tu nombre y envía tu solicitud. Quedará pendiente de confirmación.</p>
-    <div id="availabilityList"></div>
-    <form id="bookingForm" class="booking-form">
-      <p id="bkRangeLabel" class="booking-range"></p>
+<!-- Rol "booking": ve el horario real igual que el invitado (de forma
+     transparente, a propósito) y elige una casilla libre para pedir una cita
+     con fecha real — este modal se abre al hacer clic con "Modo agendar"
+     activo (ver openBookingModal en booking.js). -->
+<div id="bookingModal" class="modal-overlay">
+  <div class="modal-box">
+    <h2>📅 Agendar cita</h2>
+    <p class="booking-range" id="bkDateLabel"></p>
+    <form id="bookingModalForm">
       <div class="booking-fields">
         <label>Empieza<select id="bkStart" required></select></label>
         <label>Duración<select id="bkDuration" required></select></label>
       </div>
+      <select id="bkType">
+        <option value="☕ Café">☕ Café</option>
+        <option value="🍽️ Comer algo">🍽️ Comer algo</option>
+        <option value="🚶 Caminar">🚶 Caminar</option>
+        <option value="🎬 Ver película">🎬 Ver película</option>
+        <option value="😏 Quedarnos en casa">😏 Quedarnos en casa</option>
+        <option value="🎲 Sorpréndeme">🎲 Sorpréndeme</option>
+      </select>
+      <input type="text" id="bkBudget" placeholder="Presupuesto (opcional, ej. $50.000)" autocomplete="off">
+      <select id="bkPayment">
+        <option value="💳 Dinero">💳 Dinero</option>
+        <option value="🎁 En especie">🎁 En especie</option>
+        <option value="😏 Con el cuerpo">😏 Con el cuerpo</option>
+      </select>
       <input type="text" id="bkName" placeholder="Tu nombre" required autocomplete="name">
       <input type="text" id="bkNote" placeholder="Nota (opcional)" autocomplete="off">
       <div class="modal-actions">
-        <button type="button" class="btn" onclick="closeBookingForm()">Cancelar</button>
+        <button type="button" class="btn" onclick="closeBookingModal()">Cancelar</button>
         <button type="submit" class="btn btn-primary">Enviar solicitud</button>
       </div>
     </form>

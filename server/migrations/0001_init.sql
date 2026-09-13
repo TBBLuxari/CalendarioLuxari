@@ -52,6 +52,9 @@ CREATE TABLE IF NOT EXISTS booking_requests (
   end_hour INTEGER NOT NULL,
   requester_name TEXT NOT NULL,
   note TEXT DEFAULT '',
+  date_type TEXT DEFAULT '',
+  budget TEXT DEFAULT '',
+  payment_method TEXT DEFAULT '',
   status TEXT NOT NULL DEFAULT 'pending', -- 'pending' | 'approved' | 'rejected'
   created_at TEXT NOT NULL
 );

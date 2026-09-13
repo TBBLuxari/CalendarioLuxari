@@ -4,7 +4,7 @@ const { requireAuth, requireRole } = require('../auth/middleware');
 
 const router = express.Router();
 
-router.get('/', requireAuth, requireRole('owner', 'guest'), async (req, res) => {
+router.get('/', requireAuth, requireRole('owner', 'guest', 'booking'), async (req, res) => {
   const { rows } = await db.execute({ sql: 'SELECT value FROM app_state WHERE key = ?', args: ['schedule'] });
   res.json(JSON.parse(rows[0].value));
 });

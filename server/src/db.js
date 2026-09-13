@@ -43,6 +43,9 @@ async function addColumnIfMissing(table, column, definition){
 
 async function applyPatches(){
   await addColumnIfMissing('proposals', 'proposed_by', "TEXT DEFAULT ''");
+  await addColumnIfMissing('booking_requests', 'date_type', "TEXT DEFAULT ''");
+  await addColumnIfMissing('booking_requests', 'budget', "TEXT DEFAULT ''");
+  await addColumnIfMissing('booking_requests', 'payment_method', "TEXT DEFAULT ''");
 }
 
 async function seedPasswords(){

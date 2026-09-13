@@ -175,7 +175,7 @@ td.sc .now-line{position:absolute;left:0;right:0;height:2px;background:var(--now
 /* CANDADO DE ACCESO */
 #lockScreen{position:fixed;inset:0;background:var(--bg);display:none;align-items:center;justify-content:center;z-index:6000;padding:16px;}
 body.locked #lockScreen{display:flex;}
-body.locked #topbar,body.locked #grid,body.locked #bookingView{visibility:hidden;}
+body.locked #topbar,body.locked #grid{visibility:hidden;}
 #lockScreen #lockHint{font-size:13px;color:var(--text2);margin-bottom:16px;}
 #lockForm{display:flex;flex-direction:column;gap:10px;}
 #lockForm input{font:inherit;font-size:13px;padding:9px 10px;border-radius:8px;border:1px solid var(--btn-border);background:var(--btn-bg);color:var(--text);text-align:center;}
@@ -207,27 +207,20 @@ td.sc.draft-cell::after{content:'✏️';position:absolute;top:0;right:1px;font-
 #draftBar{display:none;position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:1500;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:8px 10px;box-shadow:0 8px 24px rgba(0,0,0,.2);align-items:center;gap:8px;font-size:12px;}
 #draftBar.show{display:flex;}
 
-/* ROL "booking": no ve el horario en absoluto (privacidad), solo la vista
-   dedicada de disponibilidad + solicitud de cita. */
-#bookingView{display:none;}
-body.role-booking #topbar,body.role-booking #grid{display:none;}
-body.role-booking #bookingView{display:flex;}
+/* ROL "booking": ve el horario real igual que el invitado (a propósito, para
+   que pueda elegir bien una hora — ver activities/schedule.routes.js) pero
+   solo puede pedir cita sobre casillas libres, no editar nada. Se ocultan el
+   selector de actividad y el menú ⚙️, que no le sirven de nada. */
+body:not(.role-booking) .booking-only{display:none !important;}
+body.role-booking #actPickerDD,body.role-booking #settingsDD{display:none;}
 
-#bookingView{justify-content:center;padding:24px 16px;height:100vh;overflow:auto;}
-.booking-box{max-width:520px;width:100%;margin:0 auto;}
-.booking-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
-.booking-head .title{font-size:15px;font-weight:600;}
-#bookingView .hint{display:block;color:var(--text2);font-size:11px;margin-bottom:16px;}
-.avail-day{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px;}
-.avail-day-title{font-size:12px;font-weight:600;margin-bottom:6px;text-transform:capitalize;}
-.avail-chips{display:flex;flex-wrap:wrap;gap:6px;}
-.avail-chip{border-radius:20px;}
-.booking-form{display:none;flex-direction:column;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;margin-top:14px;position:sticky;bottom:12px;box-shadow:0 6px 24px rgba(0,0,0,.15);}
-.booking-form.show{display:flex;}
-.booking-range{font-size:12px;font-weight:600;}
+#bookingNameInput{font:inherit;font-size:11px;padding:5px 9px;border-radius:7px;border:1px solid var(--btn-border);background:var(--btn-bg);color:var(--text);width:110px;}
+
+#bookingModalForm{display:flex;flex-direction:column;gap:8px;}
+#bookingModalForm input,#bookingModalForm select{font:inherit;font-size:12px;padding:6px 8px;border-radius:6px;border:1px solid var(--btn-border);background:var(--btn-bg);color:var(--text);}
+.booking-range{font-size:12px;font-weight:600;margin-bottom:4px;}
 .booking-fields{display:flex;gap:8px;}
 .booking-fields label{flex:1;display:flex;flex-direction:column;gap:4px;font-size:10px;color:var(--text2);}
-.booking-form input,.booking-form select{font:inherit;font-size:12px;padding:6px 8px;border-radius:6px;border:1px solid var(--btn-border);background:var(--btn-bg);color:var(--text);}
 
 /* MODAL DE EVENTOS Y CITAS */
 .modal-subtitle{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--text2);margin:14px 0 8px;}

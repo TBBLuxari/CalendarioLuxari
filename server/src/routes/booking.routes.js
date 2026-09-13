@@ -22,11 +22,12 @@ router.get('/booking-requests', requireAuth, requireRole('owner'), async (req, r
   res.json(rows.map(r => ({
     id: r.id, date: r.date, startHour: r.start_hour, endHour: r.end_hour,
     requesterName: r.requester_name, note: r.note, status: r.status,
+    dateType: r.date_type || '', budget: r.budget || '', paymentMethod: r.payment_method || '',
   })));
 });
 
 router.post('/booking-requests', requireAuth, requireRole('booking'), async (req, res) => {
-  const { date, startHour, endHour, requesterName, note = '' } = req.body || {};
+  const { date, startHour, endHour, requesterName, note = '', dateType = '', budget = '', paymentMethod = '' } = req.body || {};
   if(!/^\d{4}-\d{2}-\d{2}$/.test(date || '')) return res.status(400).json({ error: 'Fecha inválida' });
   if(!(Number.isInteger(startHour) && Number.isInteger(endHour) && startHour >= 0 && endHour <= 24 && startHour < endHour)){
     return res.status(400).json({ error: 'Rango de horas inválido' });
@@ -39,13 +40,15 @@ router.post('/booking-requests', requireAuth, requireRole('booking'), async (req
   if(!fits) return res.status(409).json({ error: 'Ese horario ya no está libre, elige otro' });
 
   const id = makeId();
+  const clean = s => (s || '').toString().trim().slice(0, 60);
   await db.execute({
-    sql: 'INSERT INTO booking_requests(id, date, start_hour, end_hour, requester_name, note, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-    args: [id, date, startHour, endHour, requesterName.trim(), note, 'pending', new Date().toISOString()],
+    sql: 'INSERT INTO booking_requests(id, date, start_hour, end_hour, requester_name, note, date_type, budget, payment_method, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    args: [id, date, startHour, endHour, requesterName.trim(), note, clean(dateType), clean(budget), clean(paymentMethod), 'pending', new Date().toISOString()],
   });
-  res.status(201).json({ id, date, startHour, endHour, requesterName: requesterName.trim(), note, status: 'pending' });
+  res.status(201).json({ id, date, startHour, endHour, requesterName: requesterName.trim(), note, dateType, budget, paymentMethod, status: 'pending' });
 
-  notifyOwner(`📅 ${requesterName.trim()} pide una cita: ${date} ${String(startHour).padStart(2,'0')}:00–${String(endHour).padStart(2,'0')}:00${note ? ' — ' + note : ''}`);
+  const extra = [clean(dateType), clean(budget) && `💰 ${clean(budget)}`, clean(paymentMethod)].filter(Boolean).join(' · ');
+  notifyOwner(`📅 ${requesterName.trim()} pide una cita: ${date} ${String(startHour).padStart(2,'0')}:00–${String(endHour).padStart(2,'0')}:00${extra ? ' — ' + extra : ''}${note ? ' — ' + note : ''}`);
 });
 
 router.post('/booking-requests/:id/approve', requireAuth, requireRole('owner'), async (req, res) => {
@@ -54,9 +57,10 @@ router.post('/booking-requests/:id/approve', requireAuth, requireRole('owner'), 
   const r = reqRow.rows[0];
 
   const eventId = 'ev_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const notesParts = [r.date_type, r.budget && `💰 ${r.budget}`, r.payment_method, r.note].filter(Boolean);
   await db.execute({
     sql: 'INSERT INTO events(id, date, start_hour, end_hour, title, notes, source, remind, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    args: [eventId, r.date, r.start_hour, r.end_hour, `Cita con ${r.requester_name}`, r.note, 'booking', 1, new Date().toISOString()],
+    args: [eventId, r.date, r.start_hour, r.end_hour, `Cita con ${r.requester_name}`, notesParts.join(' · '), 'booking', 1, new Date().toISOString()],
   });
   await db.execute({ sql: "UPDATE booking_requests SET status = 'approved' WHERE id = ?", args: [r.id] });
   res.json({ ok: true, eventId });

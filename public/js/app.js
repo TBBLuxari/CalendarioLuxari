@@ -335,19 +335,15 @@ function resetStyleOverrides(){
 }
 
 /* ARRANQUE POR ROL
-   El rol "booking" nunca ve el horario (privacidad: solo ve huecos libres,
-   no qué actividad hay en cada uno). Owner/guest sí necesitan el horario, las
-   actividades y las propuestas cargadas antes de construir la cuadrícula. */
+   Los tres roles ven la cuadrícula real (owner y booking sin restricciones;
+   invitado sin la cola de propuestas — ver proposals.routes.js). Lo que
+   cambia es qué datos trae cada uno además del horario/actividades, y qué
+   puede hacer al tocar una celda (ver paint() en grid.js). */
 async function startForRole(role){
-  if(role === 'booking'){
-    await initBookingView();
-    return;
-  }
-
-  // El invitado no trae /proposals: no ve la cola pendiente (ni la suya ni
-  // la de otros invitados) — ver server/src/routes/proposals.routes.js.
-  const tasks = [fetchActivities(), fetchSchedule(), fetchGuestRules()];
-  if(role === 'owner') tasks.push(fetchProposals(), fetchEvents(), fetchBookingRequests());
+  const tasks = [fetchActivities(), fetchSchedule()];
+  if(role === 'guest') tasks.push(fetchGuestRules());
+  if(role === 'booking') tasks.push(fetchBookingAvailability());
+  if(role === 'owner') tasks.push(fetchProposals(), fetchGuestRules(), fetchEvents(), fetchBookingRequests());
   await Promise.all(tasks);
 
   if(role === 'guest'){
@@ -356,9 +352,14 @@ async function startForRole(role){
     nameInput.value = guestName;
     nameInput.oninput = () => setGuestName(nameInput.value);
   }
+  if(role === 'booking'){
+    const nameInput = document.getElementById('bookingNameInput');
+    nameInput.value = bookingName;
+    nameInput.oninput = () => setBookingName(nameInput.value);
+  }
 
   buildGrid();
-  renderActPicker();
+  if(role !== 'booking') renderActPicker();
   initTouch();
   updateNow();
   setInterval(updateNow, 60000);

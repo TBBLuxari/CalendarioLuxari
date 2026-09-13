@@ -8,7 +8,7 @@ function makeId(){
   return 'act_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 }
 
-router.get('/', requireAuth, requireRole('owner', 'guest'), async (req, res) => {
+router.get('/', requireAuth, requireRole('owner', 'guest', 'booking'), async (req, res) => {
   const { rows } = await db.execute('SELECT id, label, icon, bg, fg FROM activities ORDER BY sort_order ASC');
   if(req.role === 'guest'){
     // Un invitado no ve la lista completa de actividades del propietario —
@@ -22,6 +22,9 @@ router.get('/', requireAuth, requireRole('owner', 'guest'), async (req, res) => 
     schedule.forEach(day => day.forEach(id => usedIds.add(id)));
     return res.json(rows.filter(a => usedIds.has(a.id)));
   }
+  // El rol "booking" sí ve la lista completa, a propósito: la idea es que
+  // quien va a agendar una cita vea el horario real tal cual, para elegir
+  // bien una hora — no es un invitado cualquiera.
   res.json(rows);
 });
 

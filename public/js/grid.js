@@ -93,17 +93,17 @@ function buildGrid(){
       applyCell(td, data[d][h]);
 
       td.addEventListener('mousedown', e => {
-        if(!canGuestPaint()) return;
+        if(!canPaintNow()) return;
         drag = true; dragStart = {d, h};
         paint(d, h); showDragTip(d, h, h);
         e.preventDefault();
       });
-      // El invitado pinta de a una celda por toque/clic (sin arrastrar): así
-      // no hay parpadeo de "marcar/desmarcar" al pasar el dedo/mouse dos
+      // El invitado y el rol "booking" tocan de a una celda (sin arrastrar):
+      // así no hay parpadeo de "marcar/desmarcar" al pasar el dedo/mouse dos
       // veces por la misma celda mientras arrastra (ver toggleDraft).
-      td.addEventListener('mouseenter', () => { if(drag && currentRole !== 'guest') paintRange(d, h); });
+      td.addEventListener('mouseenter', () => { if(drag && currentRole === 'owner') paintRange(d, h); });
       td.addEventListener('dblclick', () => {
-        if(currentRole === 'guest') return; // el invitado destoca con un solo toque (toggleDraft), no ve propuestas ya enviadas
+        if(currentRole !== 'owner') return; // invitado: destoca con un toque (toggleDraft); booking: no edita el horario real
         data[d][h] = 'free'; applyCell(td, 'free');
       });
     }
@@ -122,6 +122,14 @@ function paint(d, h){
     }
     if(data[d][h] !== 'free'){ toast('Esa hora ya está ocupada — solo puedes proponer horario en celdas libres'); return; }
     toggleDraft(d, h);
+    return;
+  }
+  if(currentRole === 'booking'){
+    if(!bookingPickMode) return; // toque/clic accidental (ej. mientras navega) sin "Modo agendar" activo
+    if(data[d][h] !== 'free'){ toast('Esa hora ya la tengo ocupada — elige otra'); return; }
+    const found = findNextFreeOccurrence(d, h);
+    if(!found){ toast('No encontré una fecha libre próxima para ese horario — prueba otra casilla'); return; }
+    openBookingModal(d, h, found.date, found.range);
     return;
   }
   data[d][h] = sel;
@@ -173,15 +181,16 @@ async function saveData(){
 }
 
 /* TOUCH
-   Un invitado con "Modo proponer" apagado (por defecto) NUNCA intercepta el
-   toque acá: el navegador hace scroll/zoom normal. Prendido, cada toque
-   marca UNA celda (sin arrastrar) — ver canGuestPaint()/toggleDraft(). El
-   propietario conserva el arrastre completo de siempre. */
+   Con "Modo proponer"/"Modo agendar" apagado (por defecto) el invitado y el
+   rol "booking" NUNCA interceptan el toque acá: el navegador hace scroll/zoom
+   normal. Prendido, cada toque marca UNA celda (sin arrastrar) — ver
+   canPaintNow()/toggleDraft()/paint(). El propietario conserva el arrastre
+   completo de siempre. */
 let lastTouchTd = null;
 function initTouch(){
   const gw = document.getElementById('grid');
   gw.addEventListener('touchstart', e => {
-    if(!canGuestPaint()) return;
+    if(!canPaintNow()) return;
     const el = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY);
     if(el?.classList.contains('sc')){
       const d = +el.dataset.d, h = +el.dataset.h;
@@ -191,7 +200,7 @@ function initTouch(){
     }
   }, {passive:false});
   gw.addEventListener('touchmove', e => {
-    if(!drag || currentRole === 'guest') return;
+    if(!drag || currentRole !== 'owner') return;
     const el = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY);
     if(el?.classList.contains('sc') && el !== lastTouchTd){
       paintRange(+el.dataset.d, +el.dataset.h);
@@ -257,8 +266,13 @@ let guestPaintMode = false;
 let draftProposals = []; // {d, h, actId} — locales, no enviados aún
 let guestName = localStorage.getItem('hs_guest_name') || '';
 
-function canGuestPaint(){
-  return currentRole !== 'guest' || guestPaintMode;
+// Puede "tocar" la cuadrícula ahora mismo: el propietario siempre; el
+// invitado y el rol "booking" solo con su modo (proponer/agendar) activado —
+// si no, un toque para hacer scroll/zoom no debe disparar nada (ver initTouch).
+function canPaintNow(){
+  if(currentRole === 'guest') return guestPaintMode;
+  if(currentRole === 'booking') return bookingPickMode;
+  return true;
 }
 
 function toggleGuestPaintMode(){
