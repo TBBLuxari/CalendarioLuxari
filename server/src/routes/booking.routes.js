@@ -6,6 +6,7 @@ const express = require('express');
 const { db } = require('../db');
 const { requireAuth, requireRole } = require('../auth/middleware');
 const { getAvailability } = require('../services/availability');
+const { notifyOwner } = require('../services/telegram');
 
 const router = express.Router();
 
@@ -43,6 +44,8 @@ router.post('/booking-requests', requireAuth, requireRole('booking'), async (req
     args: [id, date, startHour, endHour, requesterName.trim(), note, 'pending', new Date().toISOString()],
   });
   res.status(201).json({ id, date, startHour, endHour, requesterName: requesterName.trim(), note, status: 'pending' });
+
+  notifyOwner(`📅 ${requesterName.trim()} pide una cita: ${date} ${String(startHour).padStart(2,'0')}:00–${String(endHour).padStart(2,'0')}:00${note ? ' — ' + note : ''}`);
 });
 
 router.post('/booking-requests/:id/approve', requireAuth, requireRole('owner'), async (req, res) => {

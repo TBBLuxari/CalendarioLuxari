@@ -5,9 +5,11 @@
 const express = require('express');
 const { db } = require('../db');
 const { requireAuth, requireRole } = require('../auth/middleware');
+const { notifyOwner } = require('../services/telegram');
 
 const router = express.Router();
 
+const DAY_NAMES = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
 function makeId(){ return 'prop_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 function pad2(n){ return String(n).padStart(2, '0'); }
 
@@ -77,6 +79,11 @@ router.post('/', requireAuth, requireRole('guest'), async (req, res) => {
     args: [id, d, h, actId, proposedByClean, new Date().toISOString()],
   });
   res.status(201).json({ id, d, h, actId, proposedBy: proposedByClean });
+
+  const actRow = await db.execute({ sql: 'SELECT label FROM activities WHERE id = ?', args: [actId] });
+  const label = actRow.rows[0]?.label || actId;
+  const who = proposedByClean || 'Alguien';
+  notifyOwner(`📩 ${who} propone ${DAY_NAMES[d]} ${pad2(h)}:00–${pad2(h + 1)}:00 → ${label}`);
 });
 
 router.delete('/:id', requireAuth, requireRole('owner', 'guest'), async (req, res) => {

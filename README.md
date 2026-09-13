@@ -83,7 +83,7 @@ Sigue siendo 100% del lado del cliente (OAuth de tu propia cuenta, sin pasar por
 2. **Servidor — [Render](https://render.com), "New Web Service":** conéctalo a este repo de GitHub.
    - Build command: `npm install`
    - Start command: `npm start`
-   - Variables de entorno: `DATABASE_URL`, `DATABASE_AUTH_TOKEN`, `JWT_SECRET`, `OWNER_PASSWORD`, `GUEST_PASSWORD`, `BOOKING_PASSWORD`.
+   - Variables de entorno: `DATABASE_URL`, `DATABASE_AUTH_TOKEN`, `JWT_SECRET`, `OWNER_PASSWORD`, `GUEST_PASSWORD`, `BOOKING_PASSWORD`, y opcionalmente `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` (ver más abajo).
 3. Cada push a `main` re-despliega solo. El plan gratuito de Render "duerme" el servicio tras ~15 min sin visitas y tarda unos segundos en despertar en la siguiente visita — aceptable para uso personal/familiar. Si eso molesta, la alternativa es Fly.io (no se duerme, pide tarjeta) o un plan de pago de Render/DigitalOcean.
 
 GitHub Pages **ya no sirve la app en vivo** (no puede correr Node) — el repo sigue en GitHub como código fuente, pero el sitio real ahora vive en Render.
@@ -95,6 +95,17 @@ Cuatro mecanismos, pensados para complementarse:
 - **📆 Sincronizar Google** / **🔄 Traer de Google**: ver arriba.
 - **📅 Exportar .ics**: genera `mi-horario.ics` con el horario recurrente + tus eventos con fecha, para importar en cualquier app de calendario.
 - **🔔 Avisos**: notificación del navegador + pitido fuerte + alerta de pantalla completa que no se cierra sola, mientras la pestaña esté abierta (horario semanal y eventos con recordatorio). No es confiable en el celular si el navegador queda en segundo plano — para eso está la sincronización con Google.
+- **📲 Aviso a Telegram** cuando alguien te propone algo (invitado) o pide una cita: llega al celular al instante, sin necesidad de tener la app abierta. Opcional — ver siguiente sección.
+
+## Aviso a Telegram (opcional)
+
+Cuando un invitado envía una propuesta o alguien pide una cita, el servidor le manda un mensaje a tu Telegram. Si no configuras esto, simplemente no se manda ningún aviso — el resto de la app funciona igual.
+
+1. En Telegram, busca **@BotFather**, ábrele el chat y envía `/newbot`. Ponle un nombre para mostrar y un usuario único terminado en "bot".
+2. Copia el **token** que te da (algo como `123456789:AAExxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`) → variable `TELEGRAM_BOT_TOKEN`.
+3. Busca tu bot recién creado (por el usuario que le pusiste) y mándale cualquier mensaje (ej. "hola") — si no le escribes primero, no puede responderte.
+4. Abre en el navegador `https://api.telegram.org/bot<TU_TOKEN>/getUpdates` (con tu token real) y busca `"chat":{"id":` en el JSON — ese número es tu **chat_id** → variable `TELEGRAM_CHAT_ID`.
+5. Agrega ambas variables en `.env` (desarrollo local) y/o en las variables de entorno de Render (producción) y reinicia el servidor.
 
 ## Pendiente / decisiones abiertas
 
