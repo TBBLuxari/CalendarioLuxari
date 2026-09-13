@@ -115,6 +115,7 @@ function buildGrid(){
 function paint(d, h){
   if(currentRole === 'guest'){
     if(!guestPaintMode) return; // toque/clic accidental (ej. mientras navega) sin "Modo proponer" activo
+    if(!sel){ toast('Primero crea una actividad arriba (▾) para saber qué proponer'); return; }
     if(h < guestRules.startHour || h >= guestRules.endHour){
       toast(`El propietario solo permite proponer entre las ${String(guestRules.startHour).padStart(2,'0')}:00 y las ${String(guestRules.endHour).padStart(2,'0')}:00`);
       return;
@@ -325,19 +326,23 @@ async function submitDraft(){
   }
   const items = [...draftProposals];
   draftProposals = [];
-  updateDraftBar();
   let okCount = 0;
+  const failed = [];
   for(const item of items){
     const sent = await addProposal(item.d, item.h, item.actId);
     if(sent) okCount++;
-    else renderDraftCell(item.d, item.h); // falló (ej. ya no está libre): la deja visible para reintentar
+    else failed.push(item); // falló (ej. ya no está libre, o tope de horas): queda para reintentar
   }
+  draftProposals = failed;
+  failed.forEach(item => renderDraftCell(item.d, item.h));
+  updateDraftBar();
   if(okCount === 0) return;
   toast(`✓ ${okCount} propuesta(s) enviada(s) — gracias, ${guestName}`);
   // La sesión de invitado se cierra sola tras enviar: así el enlace/contraseña
   // compartida queda lista para que la siguiente persona empiece de cero, sin
   // arrastrar el nombre ni ver lo que ya se propuso (ver server/src/routes/proposals.routes.js).
-  setTimeout(() => logout(), 1800);
+  // Si algo quedó pendiente de reintentar, no cerramos sesión todavía.
+  if(failed.length === 0) setTimeout(() => logout(), 1800);
 }
 
 /* PROPUESTAS DE INVITADOS
@@ -418,17 +423,28 @@ async function approveProposal(p){
   return true;
 }
 
-async function approveAllProposals(){
-  const items = [...proposals];
-  if(items.length === 0) return;
+// Compartida por "Aprobar todas" (todo el mundo) y "✓ Todas" por grupo (una
+// sola persona): aprueba en orden y sigue aunque alguna choque de horario con
+// otra ya aprobada en la misma tanda (ver approveProposal).
+async function approveMany(items){
   let okCount = 0, failCount = 0;
   for(const p of items){
-    // proposals puede haber cambiado (por conflicto de horario) en cada vuelta
-    if(!proposals.some(x => x.id === p.id)) continue;
+    if(!proposals.some(x => x.id === p.id)) continue; // ya se resolvió en una vuelta anterior
     if(await approveProposal(p)) okCount++; else failCount++;
   }
   renderPropList();
   toast(failCount === 0 ? `✓ ${okCount} propuesta(s) aprobada(s)` : `✓ ${okCount} aprobada(s), ${failCount} con conflicto de horario (quedaron pendientes)`);
+}
+
+function approveAllProposals(){
+  return approveMany([...proposals]);
+}
+
+async function rejectMany(items){
+  for(const p of items){
+    if(proposals.some(x => x.id === p.id)) await removeProposal(p.id);
+  }
+  renderPropList();
 }
 
 function updateProposalBadges(){
@@ -450,22 +466,52 @@ function renderPropList(){
     list.innerHTML = '<div class="act-empty">No hay propuestas pendientes.</div>';
     return;
   }
+
+  // Agrupadas por quién las mandó: "Camila (4)" con aprobar/rechazar todas
+  // las de esa persona, además de cada una individual — así no hay que ir
+  // una por una si vienen en tanda del mismo invitado.
+  const groups = new Map();
   proposals.forEach(p => {
-    const a = activityMap[p.actId] || activityMap.free;
-    const row = document.createElement('div');
-    row.className = 'act-row';
-    const label = document.createElement('span');
-    label.style.cssText = 'flex:1;font-size:12px;';
-    const who = p.proposedBy ? `${p.proposedBy}: ` : '';
-    label.textContent = `${who}${days[p.d]} ${String(p.h).padStart(2, '0')}:00–${String(p.h + 1).padStart(2, '0')}:00 → ${(a.icon ? a.icon + ' ' : '') + a.label}`;
-    const ok = document.createElement('button');
-    ok.className = 'btn'; ok.textContent = '✓ Aprobar';
-    ok.onclick = async () => { await approveProposal(p); renderPropList(); };
-    const no = document.createElement('button');
-    no.className = 'btn'; no.textContent = '✕ Rechazar';
-    no.onclick = async () => { await removeProposal(p.id); renderPropList(); };
-    row.append(label, ok, no);
-    list.appendChild(row);
+    const who = p.proposedBy || 'Sin nombre';
+    if(!groups.has(who)) groups.set(who, []);
+    groups.get(who).push(p);
+  });
+
+  groups.forEach((items, who) => {
+    const group = document.createElement('div');
+    group.className = 'prop-group';
+
+    const header = document.createElement('div');
+    header.className = 'prop-group-header';
+    const title = document.createElement('span');
+    title.textContent = `${who} (${items.length})`;
+    const okAll = document.createElement('button');
+    okAll.className = 'btn'; okAll.textContent = '✓ Todas';
+    okAll.onclick = () => approveMany(items);
+    const noAll = document.createElement('button');
+    noAll.className = 'btn'; noAll.textContent = '✕ Todas';
+    noAll.onclick = () => rejectMany(items);
+    header.append(title, okAll, noAll);
+    group.appendChild(header);
+
+    items.forEach(p => {
+      const a = activityMap[p.actId] || activityMap.free;
+      const row = document.createElement('div');
+      row.className = 'act-row';
+      const label = document.createElement('span');
+      label.style.cssText = 'flex:1;font-size:12px;';
+      label.textContent = `${days[p.d]} ${String(p.h).padStart(2, '0')}:00–${String(p.h + 1).padStart(2, '0')}:00 → ${(a.icon ? a.icon + ' ' : '') + a.label}`;
+      const ok = document.createElement('button');
+      ok.className = 'btn'; ok.textContent = '✓';
+      ok.onclick = async () => { await approveProposal(p); renderPropList(); };
+      const no = document.createElement('button');
+      no.className = 'btn'; no.textContent = '✕';
+      no.onclick = async () => { await removeProposal(p.id); renderPropList(); };
+      row.append(label, ok, no);
+      group.appendChild(row);
+    });
+
+    list.appendChild(group);
   });
 }
 

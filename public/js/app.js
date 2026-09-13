@@ -77,10 +77,14 @@ document.addEventListener('click', e => {
    Antes era una fila de píldoras que se salía de la pantalla al agregar
    muchas actividades; ahora es un botón compacto con la actividad actual que
    despliega una lista con scroll para elegir — y un atajo directo al editor
-   completo para agregar/renombrar/borrar. */
+   completo para agregar/renombrar/borrar.
+   El invitado no ve esta lista (puede haber actividades del propietario que
+   nunca puso en el horario y prefiere mantener privadas — ver
+   activities.routes.js): en su lugar crea la suya propia, ver más abajo. */
 const actPickerSearch = document.getElementById('actPickerSearch');
 
 function renderActPicker(){
+  if(currentRole === 'guest') return renderGuestActList();
   const list = document.getElementById('actPickerList');
   list.innerHTML = '';
   const q = actPickerSearch.value.trim().toLowerCase();
@@ -108,11 +112,66 @@ function selectActivity(id){
   document.getElementById('actPickerPanel').classList.remove('show');
 }
 function updateActPickerButton(){
+  if(currentRole === 'guest' && !sel){
+    document.getElementById('actPickerSwatch').style.background = 'transparent';
+    document.getElementById('actPickerLabel').textContent = 'Crea una actividad';
+    return;
+  }
   const a = activityMap[sel] || activityMap.free;
   document.getElementById('actPickerSwatch').style.background = a.bg;
   document.getElementById('actPickerLabel').textContent = (a.icon ? a.icon + ' ' : '') + a.label;
 }
 actPickerSearch.addEventListener('input', () => renderActPicker());
+
+/* ACTIVIDAD PROPIA DEL INVITADO
+   guestCreatedActivities es solo de esta sesión (se pierde al salir/recargar)
+   — le permite reutilizar lo que ya creó sin escribirlo de nuevo, sin
+   necesitar ver la lista completa del propietario. */
+let guestCreatedActivities = [];
+
+function contrastFg(bgHex){
+  const c = bgHex.replace('#', '');
+  const r = parseInt(c.substr(0, 2), 16), g = parseInt(c.substr(2, 2), 16), b = parseInt(c.substr(4, 2), 16);
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.6 ? '#333333' : '#ffffff';
+}
+
+function renderGuestActList(){
+  const list = document.getElementById('guestActList');
+  if(!list) return;
+  list.innerHTML = '';
+  guestCreatedActivities.forEach(a => {
+    const row = document.createElement('div');
+    row.className = 'act-pick-row' + (a.id === sel ? ' on' : '');
+    const sw = document.createElement('span');
+    sw.className = 'act-pick-swatch';
+    sw.style.background = a.bg;
+    const label = document.createElement('span');
+    label.textContent = (a.icon ? a.icon + ' ' : '') + a.label;
+    row.append(sw, label);
+    row.onclick = () => selectActivity(a.id);
+    list.appendChild(row);
+  });
+  updateActPickerButton();
+}
+
+async function createGuestActivity(){
+  const nameInput = document.getElementById('guestActName');
+  const iconInput = document.getElementById('guestActIcon');
+  const colorInput = document.getElementById('guestActColor');
+  const label = nameInput.value.trim();
+  if(!label){ toast('Escribe qué quieres proponer'); nameInput.focus(); return; }
+  try{
+    const created = await addActivity({ label, icon: iconInput.value.trim(), bg: colorInput.value, fg: contrastFg(colorInput.value) });
+    guestCreatedActivities.push(created);
+    selectActivity(created.id);
+    nameInput.value = '';
+    iconInput.value = '';
+    document.getElementById('actPickerPanel').classList.remove('show');
+    toast(`✓ "${label}" lista para proponer`);
+  }catch(e){
+    toast('❌ ' + e.message);
+  }
+}
 
 /* EDITOR DE ACTIVIDADES */
 const modal = document.getElementById('actModal');
@@ -292,6 +351,7 @@ async function startForRole(role){
   await Promise.all(tasks);
 
   if(role === 'guest'){
+    sel = null; // no arranca con una actividad del propietario preseleccionada
     const nameInput = document.getElementById('guestNameInput');
     nameInput.value = guestName;
     nameInput.oninput = () => setGuestName(nameInput.value);

@@ -56,6 +56,22 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 #actPickerPanel{width:260px;}
 #actPickerSearch{width:100%;font:inherit;font-size:12px;padding:6px 8px;margin-bottom:8px;border-radius:6px;border:1px solid var(--btn-border);background:var(--btn-bg);color:var(--text);}
 #actPickerList{max-height:min(320px,50vh);overflow-y:auto;display:flex;flex-direction:column;gap:2px;margin-bottom:8px;}
+
+/* Formulario de "crear actividad" del invitado (no ve la lista del
+   propietario, ver activities.routes.js). */
+#guestActCreate{display:flex;flex-direction:column;gap:6px;}
+#guestActName{width:100%;font:inherit;font-size:12px;padding:6px 8px;border-radius:6px;border:1px solid var(--btn-border);background:var(--btn-bg);color:var(--text);}
+.guest-act-row{display:flex;gap:6px;}
+.guest-act-row input[type=text]{width:48px;text-align:center;font:inherit;font-size:12px;padding:6px 4px;border-radius:6px;border:1px solid var(--btn-border);background:var(--btn-bg);color:var(--text);}
+.guest-act-row input[type=color]{flex:1;height:30px;padding:0;border:1px solid var(--btn-border);border-radius:6px;background:none;cursor:pointer;}
+#guestActList{max-height:min(200px,40vh);overflow-y:auto;display:flex;flex-direction:column;gap:2px;}
+
+/* Propuestas agrupadas por quién las mandó, con aprobar/rechazar por grupo
+   además del individual (ver renderPropList en grid.js). */
+.prop-group{border:1px solid var(--border);border-radius:10px;padding:8px;margin-bottom:8px;}
+.prop-group-header{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
+.prop-group-header span{flex:1;font-size:12px;font-weight:700;}
+.prop-group .act-row:last-child{margin-bottom:0;}
 .act-pick-row{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:7px;cursor:pointer;font-size:12px;user-select:none;}
 .act-pick-row:hover{background:var(--btn-hover);}
 .act-pick-row.on{background:var(--btn-hover);font-weight:600;}

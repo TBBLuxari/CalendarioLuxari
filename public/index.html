@@ -25,9 +25,21 @@
           <span id="actPickerLabel">Actividad</span> ▾
         </button>
         <div class="dropdown-panel" id="actPickerPanel">
-          <input type="text" id="actPickerSearch" placeholder="🔍 Buscar actividad…" autocomplete="off">
-          <div id="actPickerList"></div>
+          <input type="text" id="actPickerSearch" class="owner-only" placeholder="🔍 Buscar actividad…" autocomplete="off">
+          <div id="actPickerList" class="owner-only"></div>
           <button class="btn owner-only" id="editActsBtn" onclick="openActivityEditor()">✏️ Editar actividades</button>
+
+          <!-- El invitado no ve la lista de actividades del propietario (puede
+               tener cosas privadas ahí) — solo puede crear la suya propia. -->
+          <div class="guest-only" id="guestActCreate">
+            <input type="text" id="guestActName" placeholder="¿Qué quieres proponer? (ej. Cita, Estudiar)" maxlength="40">
+            <div class="guest-act-row">
+              <input type="text" id="guestActIcon" placeholder="🙂" maxlength="4">
+              <input type="color" id="guestActColor" value="#CDE4F7" title="Color">
+            </div>
+            <button class="btn" onclick="createGuestActivity()">+ Crear y usar</button>
+            <div id="guestActList"></div>
+          </div>
         </div>
       </div>
 

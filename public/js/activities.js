@@ -18,6 +18,7 @@ async function addActivity(a){
   const created = await api('/activities', { method: 'POST', body: a });
   activities.push(created);
   reindexActivities();
+  return created;
 }
 
 async function updateActivity(id, patch){

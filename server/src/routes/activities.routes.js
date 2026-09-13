@@ -10,10 +10,22 @@ function makeId(){
 
 router.get('/', requireAuth, requireRole('owner', 'guest'), async (req, res) => {
   const { rows } = await db.execute('SELECT id, label, icon, bg, fg FROM activities ORDER BY sort_order ASC');
+  if(req.role === 'guest'){
+    // Un invitado no ve la lista completa de actividades del propietario —
+    // puede haber cosas ahí que nunca puso en el horario visible y prefiere
+    // mantener privadas. Solo recibe las que ya están en uso en el horario
+    // (las necesita igual para poder pintar las celdas ya ocupadas) más
+    // "free"; para proponer algo nuevo, crea su propia actividad (ver POST).
+    const scheduleRow = await db.execute({ sql: 'SELECT value FROM app_state WHERE key = ?', args: ['schedule'] });
+    const schedule = JSON.parse(scheduleRow.rows[0].value);
+    const usedIds = new Set(['free']);
+    schedule.forEach(day => day.forEach(id => usedIds.add(id)));
+    return res.json(rows.filter(a => usedIds.has(a.id)));
+  }
   res.json(rows);
 });
 
-router.post('/', requireAuth, requireRole('owner'), async (req, res) => {
+router.post('/', requireAuth, requireRole('owner', 'guest'), async (req, res) => {
   const { label, icon, bg, fg } = req.body || {};
   if(!label || !bg || !fg) return res.status(400).json({ error: 'Faltan campos (label, bg, fg)' });
   const id = makeId();
