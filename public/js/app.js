@@ -277,8 +277,11 @@ function resize(){
   const avail = window.innerHeight - hh - thH;
   const ch = Math.max(20, Math.floor(avail / 24));
   document.documentElement.style.setProperty('--cell-h', ch + 'px');
-  const fs = ch < 25 ? 8 : ch < 33 ? 9 : 10;
-  document.querySelectorAll('td.sc').forEach(td => { td.style.fontSize = fs + 'px'; });
+  // Si el usuario fijó un tamaño de texto a mano (menú 🎨), no lo pisamos acá.
+  if(!cellFontSizeManual){
+    const fs = ch < 25 ? 8 : ch < 33 ? 9 : 10;
+    document.documentElement.style.setProperty('--cell-font-size', fs + 'px');
+  }
 }
 
 /* PERSONALIZACIÓN VISUAL (menú 🎨)
@@ -296,10 +299,16 @@ const STYLE_VARS = [
   { key: 'gridLineWidth', cssVar: '--grid-line-width', inputId: 'styleGridLineWidth', type: 'range', unit: 'px', valId: 'styleGridLineWidthVal' },
   { key: 'hourColor', cssVar: '--hour-color', inputId: 'styleHourColor', type: 'color' },
   { key: 'hourFontSize', cssVar: '--hour-font-size', inputId: 'styleHourFontSize', type: 'range', unit: 'px', valId: 'styleHourFontSizeVal' },
+  { key: 'cellFontSize', cssVar: '--cell-font-size', inputId: 'styleCellFontSize', type: 'range', unit: 'px', valId: 'styleCellFontSizeVal' },
   { key: 'dayColor', cssVar: '--day-color', inputId: 'styleDayColor', type: 'color' },
   { key: 'nowMarker', cssVar: '--now-marker', inputId: 'styleNowMarker', type: 'color' },
 ];
 const STYLE_KEY = 'hs_style_overrides';
+
+// El tamaño del texto de las actividades normalmente lo calcula resize()
+// según el alto disponible; en cuanto el usuario lo toca a mano en 🎨, deja
+// de auto-ajustarse (ver resize() en app.js) hasta que le dé "Restablecer".
+let cellFontSizeManual = loadStyleOverrides().cellFontSize !== undefined;
 
 function loadStyleOverrides(){
   try{ return JSON.parse(localStorage.getItem(STYLE_KEY) || '{}'); }catch(e){ return {}; }
@@ -324,12 +333,15 @@ function applyStyleOverrides(){
       localStorage.setItem(STYLE_KEY, JSON.stringify(next));
       document.documentElement.style.setProperty(v.cssVar, v.unit ? raw + v.unit : raw);
       if(v.valId) document.getElementById(v.valId).textContent = raw + (v.unit || '');
+      if(v.key === 'cellFontSize') cellFontSizeManual = true;
     };
   });
 }
 function resetStyleOverrides(){
   localStorage.removeItem(STYLE_KEY);
   STYLE_VARS.forEach(v => document.documentElement.style.removeProperty(v.cssVar));
+  cellFontSizeManual = false;
+  resize(); // vuelve a autoajustar el tamaño de las actividades según el alto disponible
   applyStyleOverrides();
   toast('↺ Estilos restablecidos');
 }

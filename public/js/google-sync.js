@@ -2,8 +2,7 @@
 // en un calendario SEPARADO y dedicado ("Mi Horario Semanal") para no tocar
 // nunca el calendario principal del usuario. Todo corre en el navegador con
 // Google Identity Services (OAuth sin backend); el Client ID no es secreto.
-//
-// Reutiliza buildDayBlocks() y nextMonday() de js/ics.js.
+// Ya no hay botón aparte para esto: "💾 Guardar" sincroniza de una vez.
 
 const GOOGLE_CLIENT_ID = '134242478766-m087uhlpeabp5ev383lhjf3l6tk8314u.apps.googleusercontent.com';
 const GOOGLE_SCOPE = 'https://www.googleapis.com/auth/calendar';
@@ -13,6 +12,29 @@ const GCAL_ID_KEY = 'hs_gcal_id';
 let tokenClient = null;
 let gAccessToken = null;
 let gSyncing = false;
+
+// Bloques contiguos de la misma actividad dentro de un día (no cruza medianoche).
+function buildDayBlocks(d){
+  const blocks = [];
+  let h = 0;
+  while(h < 24){
+    const id = data[d][h];
+    if(id === 'free'){ h++; continue; }
+    const start = h;
+    while(h < 24 && data[d][h] === id) h++;
+    blocks.push({start, end: h, id});
+  }
+  return blocks;
+}
+
+function nextMonday(){
+  const now = new Date();
+  const day = now.getDay(); // 0=domingo..6=sábado
+  const diff = day === 0 ? -6 : 1 - day; // retrocede al lunes de esta semana
+  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diff);
+  monday.setHours(0, 0, 0, 0);
+  return monday;
+}
 
 function initGoogleAuth(){
   if(!window.google?.accounts?.oauth2){ setTimeout(initGoogleAuth, 300); return; }
@@ -31,10 +53,12 @@ function initGoogleAuth(){
   });
 }
 
+// Ya no pide confirmación: se llama sola desde saveData() cada vez que
+// guardas, así que sería muy molesto preguntar cada vez. Sigue sin tocar tu
+// calendario principal — todo va al calendario dedicado "Mi Horario Semanal".
 function syncGoogleCalendar(){
   if(gSyncing) return;
-  if(!tokenClient){ toast('Google todavía está cargando, intenta de nuevo en unos segundos'); return; }
-  if(!confirm(`Esto reemplaza TODOS los eventos del calendario "${GCAL_NAME}" en tu cuenta de Google con el horario actual. Tu calendario principal no se toca. ¿Continuar?`)) return;
+  if(!tokenClient){ toast('Google todavía está cargando, no se pudo sincronizar esta vez'); return; }
   setGSyncBtnState(true);
   tokenClient.requestAccessToken({prompt: gAccessToken ? '' : 'consent'});
 }

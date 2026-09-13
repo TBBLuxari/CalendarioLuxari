@@ -41,7 +41,7 @@ function applyRolePermissions(){
   if(badge){
     badge.textContent = currentRole === 'owner' ? '👑 Propietario'
       : currentRole === 'guest' ? '👤 Invitado'
-      : currentRole === 'booking' ? '📅 Agendar cita'
+      : currentRole === 'booking' ? '😈 Cita'
       : '';
   }
   const logoutBtn = document.getElementById('logoutBtn');

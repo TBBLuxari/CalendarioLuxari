@@ -135,6 +135,7 @@ function buildGrid(){
       td.addEventListener('mouseenter', () => { if(drag && currentRole === 'owner') paintRange(d, h); });
       td.addEventListener('dblclick', () => {
         if(currentRole !== 'owner') return; // invitado: destoca con un toque (toggleDraft); booking: no edita el horario real
+        if(td.classList.contains('event-cell')){ deleteEventFromCell(d, h); return; }
         data[d][h] = 'free'; applyCell(td, 'free');
       });
     }
@@ -205,7 +206,8 @@ function clearAll(){
 async function saveData(){
   try{
     await api('/schedule', { method: 'PUT', body: data });
-    toast('✓ Guardado');
+    toast('✓ Guardado — sincronizando con Google…');
+    if(typeof syncGoogleCalendar === 'function') syncGoogleCalendar();
   }catch(e){
     toast('❌ No se pudo guardar: ' + e.message);
   }
@@ -449,6 +451,27 @@ function applyProposalCell(td, actId){
 // día en concreto (ver mondayOfCurrentWeek/updateHeaderDates). Así, en cuanto
 // apruebas algo (propuesta o cita), se ve reflejado aquí mismo, en tu
 // calendario de siempre — no en una lista aparte que hay que ir a revisar.
+// Fechas (YYYY-MM-DD) de los 7 días que se están mostrando ahora mismo en el
+// encabezado, según getViewedMonday()/weekOffset — comparte esto renderOverlays
+// (qué evento va en qué columna) y deleteEventFromCell (qué evento borrar).
+function getViewedWeekDates(){
+  const monday = getViewedMonday();
+  return Array.from({ length: 7 }, (_, i) => {
+    const dd = new Date(monday); dd.setDate(monday.getDate() + i);
+    return `${dd.getFullYear()}-${String(dd.getMonth() + 1).padStart(2, '0')}-${String(dd.getDate()).padStart(2, '0')}`;
+  });
+}
+
+async function deleteEventFromCell(dayIdx, h){
+  const dateStr = getViewedWeekDates()[dayIdx];
+  const ev = events.find(e => e.date === dateStr && h >= e.startHour && h < e.endHour);
+  if(!ev) return;
+  if(!confirm(`¿Borrar "${ev.title}"?`)) return;
+  await api('/events/' + ev.id, { method: 'DELETE' });
+  events = events.filter(e => e.id !== ev.id);
+  renderOverlays();
+}
+
 function renderOverlays(){
   if(!data) return;
   document.querySelectorAll('td.sc.proposal-cell, td.sc.event-cell').forEach(td => {
@@ -464,11 +487,7 @@ function renderOverlays(){
   });
 
   if(currentRole === 'owner' && typeof events !== 'undefined' && events.length){
-    const monday = getViewedMonday();
-    const weekDates = Array.from({ length: 7 }, (_, i) => {
-      const dd = new Date(monday); dd.setDate(monday.getDate() + i);
-      return `${dd.getFullYear()}-${String(dd.getMonth() + 1).padStart(2, '0')}-${String(dd.getDate()).padStart(2, '0')}`;
-    });
+    const weekDates = getViewedWeekDates();
     events.forEach(ev => {
       const dayIdx = weekDates.indexOf(ev.date);
       if(dayIdx === -1) return; // esta semana no incluye la fecha del evento

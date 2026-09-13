@@ -109,10 +109,12 @@ if(bookingModalForm){
     setBookingName(requesterName);
     try{
       await api('/booking-requests', { method: 'POST', body: { date, startHour, endHour, requesterName, note, dateType, budget, paymentMethod } });
-      toast('✓ Solicitud enviada — espera la confirmación');
+      toast(`✓ Solicitud enviada — gracias, ${requesterName}`);
       closeBookingModal();
       bookingModalForm.reset();
-      await fetchBookingAvailability(); // por si quiere pedir otra hora distinta
+      // Igual que el invitado: la sesión se cierra sola tras pedir la cita,
+      // lista para que la use otra persona sin arrastrar nombre ni estado.
+      setTimeout(() => logout(), 1800);
     }catch(err){
       toast('❌ ' + err.message);
       await fetchBookingAvailability();
@@ -170,7 +172,6 @@ function renderBookingRequestsSection(){
       await api('/booking-requests/' + r.id + '/approve', { method: 'POST' });
       await Promise.all([fetchBookingRequests(), fetchEvents()]);
       renderBookingRequestsSection();
-      renderEventsList();
       toast('✓ Cita confirmada — ya aparece en tu horario');
     };
     const no = document.createElement('button');

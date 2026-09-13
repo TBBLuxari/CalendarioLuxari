@@ -11,7 +11,7 @@
      --border/--now/--text3 a propósito: así tocarlos no cambia también el
      borde de botones/modales ni el acento de los botones destacados. */
   --grid-line:#E0E0DA;--hour-color:#C8C8C2;--now-marker:#E0453C;--day-color:#888888;
-  --grid-line-width:0.5px;--hour-font-size:9px;--app-font:'DM Sans', system-ui, sans-serif;
+  --grid-line-width:0.5px;--hour-font-size:9px;--cell-font-size:10px;--app-font:'DM Sans', system-ui, sans-serif;
 }
 [data-theme="dark"]{
   --bg:#141414;--surface:#1E1E1C;--border:#2C2C28;
@@ -120,7 +120,7 @@ td.tc.h6{border-top:1.5px solid var(--time-border);}
 td.tc .tlabel{position:absolute;top:0;right:5px;transform:translateY(-50%);font-size:var(--hour-font-size);color:var(--hour-color);background:var(--time-bg);padding:0 2px;line-height:1;white-space:nowrap;pointer-events:none;}
 td.tc.now-row .tlabel{color:var(--now-marker);font-weight:700;}
 
-td.sc{height:var(--cell-h);border-style:solid;border-width:var(--grid-line-width);border-color:var(--grid-line);font-size:9px;font-weight:500;text-align:center;vertical-align:middle;cursor:crosshair;user-select:none;transition:filter .06s;padding:0 1px;touch-action:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;position:relative;}
+td.sc{height:var(--cell-h);border-style:solid;border-width:var(--grid-line-width);border-color:var(--grid-line);font-size:var(--cell-font-size);font-weight:500;text-align:center;vertical-align:middle;cursor:crosshair;user-select:none;transition:filter .06s;padding:0 1px;touch-action:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;position:relative;}
 td.sc:hover{filter:brightness(.84);}
 td.sc.h6{border-top:1px solid rgba(128,128,128,.18);}
 

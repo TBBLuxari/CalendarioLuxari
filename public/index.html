@@ -59,13 +59,10 @@
         <div class="dropdown-panel dropdown-panel-menu" id="settingsPanel">
           <button class="btn owner-only" id="propBtn" onclick="openPropModal()">📩 Propuestas (0)</button>
           <button class="btn owner-only" id="citasBtn" onclick="openCitasModal()">❤️ Citas (0)</button>
-          <button class="btn owner-only" id="eventsBtn" onclick="openEventsModal()">🗓️ Eventos (0)</button>
           <button class="btn guest-only" onclick="copyProposalsText()">📋 Copiar propuestas</button>
           <button class="btn" id="notifBtn" onclick="toggleNotifs()">🔕 Avisos</button>
-          <button class="btn" onclick="exportICS()">📅 Exportar .ics</button>
-          <button class="btn owner-only" id="gsyncBtn" onclick="syncGoogleCalendar()" title="Sube tu horario y eventos a Google, sobrescribiendo lo que haya ahí">📆 Sincronizar Google</button>
-          <button class="btn owner-only" id="gpullBtn" onclick="pullFromGoogleCalendar()" title="Trae el horario guardado en Google y reemplaza el local, para coordinar entre computadores">🔄 Traer de Google</button>
-          <button class="btn owner-only" onclick="saveData()">💾 Guardar</button>
+          <button class="btn owner-only" id="gpullBtn" onclick="pullFromGoogleCalendar()" title="Trae el horario guardado en Google y lo guarda como tu horario local">🔄 Traer de Google</button>
+          <button class="btn owner-only" onclick="saveData()" title="Guarda tu horario y lo sincroniza con Google de una vez">💾 Guardar</button>
           <button class="btn owner-only" onclick="clearAll()">🧹 Limpiar</button>
           <button class="btn owner-only" onclick="resetAll()" title="Descarta los cambios sin guardar y recarga lo último guardado en el servidor">↺ Recargar</button>
 
@@ -99,6 +96,7 @@
           <label class="style-row">Ancho de las líneas <span class="style-range"><input type="range" id="styleGridLineWidth" min="0" max="3" step="0.5"><span id="styleGridLineWidthVal"></span></span></label>
           <label class="style-row">Color de la hora <input type="color" id="styleHourColor"></label>
           <label class="style-row">Tamaño de la hora <span class="style-range"><input type="range" id="styleHourFontSize" min="7" max="16" step="1"><span id="styleHourFontSizeVal"></span></span></label>
+          <label class="style-row">Tamaño de las actividades <span class="style-range"><input type="range" id="styleCellFontSize" min="7" max="16" step="1"><span id="styleCellFontSizeVal"></span></span></label>
           <label class="style-row">Color del día <input type="color" id="styleDayColor"></label>
           <label class="style-row">Marcador de "ahora" <input type="color" id="styleNowMarker"></label>
           <button class="btn" onclick="resetStyleOverrides()">↺ Restablecer estilos</button>
@@ -202,27 +200,6 @@
   </div>
 </div>
 
-<div id="eventsModal" class="modal-overlay">
-  <div class="modal-box">
-    <h2>🗓️ Eventos</h2>
-    <div id="eventsList"></div>
-    <form id="newEventForm">
-      <div class="event-form-row">
-        <input type="date" id="newEvDate" required>
-        <select id="newEvStart" title="Hora de inicio"></select>
-        <select id="newEvEnd" title="Hora de fin"></select>
-      </div>
-      <input type="text" id="newEvTitle" placeholder="Título (ej. Entregar informe)" required>
-      <input type="text" id="newEvNotes" placeholder="Notas (opcional)" autocomplete="off">
-      <label class="event-remind-lbl"><input type="checkbox" id="newEvRemind" checked> Recordarme</label>
-      <button type="submit" class="btn">+ Añadir evento</button>
-    </form>
-    <div class="modal-actions">
-      <button class="btn" onclick="closeEventsModal()">Cerrar</button>
-    </div>
-  </div>
-</div>
-
 <div id="alertModal">
   <div class="modal-box alert-box">
     <div id="alertIcon">⏰</div>
@@ -256,7 +233,6 @@
 <script src="js/grid.js"></script>
 <script src="js/events.js"></script>
 <script src="js/booking.js"></script>
-<script src="js/ics.js"></script>
 <script src="js/notify.js"></script>
 <script src="js/google-sync.js"></script>
 <script src="js/app.js"></script>
