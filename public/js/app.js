@@ -289,6 +289,12 @@ async function startForRole(role){
   if(role === 'owner') tasks.push(fetchEvents(), fetchBookingRequests());
   await Promise.all(tasks);
 
+  if(role === 'guest'){
+    const nameInput = document.getElementById('guestNameInput');
+    nameInput.value = guestName;
+    nameInput.oninput = () => setGuestName(nameInput.value);
+  }
+
   buildGrid();
   renderActPicker();
   initTouch();

@@ -44,11 +44,11 @@ router.put('/rules', requireAuth, requireRole('owner'), async (req, res) => {
 
 router.get('/', requireAuth, requireRole('owner', 'guest'), async (req, res) => {
   const { rows } = await db.execute('SELECT * FROM proposals ORDER BY created_at ASC');
-  res.json(rows.map(r => ({ id: r.id, d: r.day, h: r.hour, actId: r.activity_id })));
+  res.json(rows.map(r => ({ id: r.id, d: r.day, h: r.hour, actId: r.activity_id, proposedBy: r.proposed_by || '' })));
 });
 
 router.post('/', requireAuth, requireRole('guest'), async (req, res) => {
-  const { d, h, actId } = req.body || {};
+  const { d, h, actId, proposedBy } = req.body || {};
   if(!(Number.isInteger(d) && d >= 0 && d < 7 && Number.isInteger(h) && h >= 0 && h < 24 && actId)){
     return res.status(400).json({ error: 'Propuesta inválida' });
   }
@@ -71,11 +71,12 @@ router.post('/', requireAuth, requireRole('guest'), async (req, res) => {
 
   await db.execute({ sql: 'DELETE FROM proposals WHERE day = ? AND hour = ?', args: [d, h] });
   const id = makeId();
+  const proposedByClean = (proposedBy || '').toString().trim().slice(0, 60);
   await db.execute({
-    sql: 'INSERT INTO proposals(id, day, hour, activity_id, created_at) VALUES (?, ?, ?, ?, ?)',
-    args: [id, d, h, actId, new Date().toISOString()],
+    sql: 'INSERT INTO proposals(id, day, hour, activity_id, proposed_by, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+    args: [id, d, h, actId, proposedByClean, new Date().toISOString()],
   });
-  res.status(201).json({ id, d, h, actId });
+  res.status(201).json({ id, d, h, actId, proposedBy: proposedByClean });
 });
 
 router.delete('/:id', requireAuth, requireRole('owner', 'guest'), async (req, res) => {

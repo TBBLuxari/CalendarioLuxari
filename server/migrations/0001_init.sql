@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS proposals (
   day INTEGER NOT NULL,
   hour INTEGER NOT NULL,
   activity_id TEXT NOT NULL,
+  proposed_by TEXT DEFAULT '',
   created_at TEXT NOT NULL
 );
 

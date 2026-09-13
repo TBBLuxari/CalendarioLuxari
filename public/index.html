@@ -31,6 +31,9 @@
         </div>
       </div>
 
+      <input type="text" id="guestNameInput" class="guest-only" placeholder="Tu nombre" maxlength="60" autocomplete="off">
+      <button class="btn guest-only" id="guestPaintBtn" onclick="toggleGuestPaintMode()" title="Actívalo para marcar celdas; apágalo para desplazarte sin proponer nada">🖌️ Modo proponer: OFF</button>
+
       <button class="btn" id="tbtn" onclick="toggleTheme()">🌙</button>
 
       <div class="dropdown" id="settingsDD">
@@ -93,6 +96,14 @@
     <thead><tr id="hrow"></tr></thead>
     <tbody id="sbody"></tbody>
   </table>
+</div>
+
+<!-- Barra de "borrador" del invitado: aparece solo mientras tiene celdas
+     marcadas sin enviar (ver toggleDraft/submitDraft en grid.js). -->
+<div id="draftBar" class="guest-only">
+  <span id="draftCount"></span>
+  <button class="btn" onclick="discardDraft()">✕ Descartar</button>
+  <button class="btn btn-primary" onclick="submitDraft()">✓ Enviar propuestas</button>
 </div>
 
 <!-- Vista dedicada del rol "booking": ni ve ni toca el horario, solo pide cita. -->

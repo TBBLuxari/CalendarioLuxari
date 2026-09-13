@@ -32,6 +32,19 @@ async function applySchema(){
   for(const stmt of statements) await db.execute(stmt);
 }
 
+// CREATE TABLE IF NOT EXISTS no le agrega columnas nuevas a una tabla que ya
+// existía de un despliegue anterior — esto es lo que sí lo hace, sin romper
+// nada si la columna ya está (comprueba antes de intentar el ALTER TABLE).
+async function addColumnIfMissing(table, column, definition){
+  const { rows } = await db.execute(`PRAGMA table_info(${table})`);
+  if(rows.some(r => r.name === column)) return;
+  await db.execute(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+}
+
+async function applyPatches(){
+  await addColumnIfMissing('proposals', 'proposed_by', "TEXT DEFAULT ''");
+}
+
 async function seedPasswords(){
   const roles = [
     ['owner', process.env.OWNER_PASSWORD],
@@ -71,6 +84,7 @@ async function seedDefaultsIfEmpty(){
 
 async function initDb(){
   await applySchema();
+  await applyPatches();
   await seedPasswords();
   await seedDefaultsIfEmpty();
 }

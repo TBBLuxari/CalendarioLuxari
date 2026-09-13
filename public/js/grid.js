@@ -93,11 +93,15 @@ function buildGrid(){
       applyCell(td, data[d][h]);
 
       td.addEventListener('mousedown', e => {
+        if(!canGuestPaint()) return;
         drag = true; dragStart = {d, h};
         paint(d, h); showDragTip(d, h, h);
         e.preventDefault();
       });
-      td.addEventListener('mouseenter', () => { if(drag) paintRange(d, h); });
+      // El invitado pinta de a una celda por toque/clic (sin arrastrar): así
+      // no hay parpadeo de "marcar/desmarcar" al pasar el dedo/mouse dos
+      // veces por la misma celda mientras arrastra (ver toggleDraft).
+      td.addEventListener('mouseenter', () => { if(drag && currentRole !== 'guest') paintRange(d, h); });
       td.addEventListener('dblclick', () => {
         if(currentRole === 'guest'){ removeOwnProposal(d, h); return; }
         data[d][h] = 'free'; applyCell(td, 'free');
@@ -110,12 +114,14 @@ function buildGrid(){
 
 function paint(d, h){
   if(currentRole === 'guest'){
+    if(!guestPaintMode) return; // toque/clic accidental (ej. mientras navega) sin "Modo proponer" activo
     if(h < guestRules.startHour || h >= guestRules.endHour){
       toast(`El propietario solo permite proponer entre las ${String(guestRules.startHour).padStart(2,'0')}:00 y las ${String(guestRules.endHour).padStart(2,'0')}:00`);
       return;
     }
     if(data[d][h] !== 'free'){ toast('Esa hora ya está ocupada — solo puedes proponer horario en celdas libres'); return; }
-    addProposal(d, h, sel);
+    if(proposals.some(p => p.d === d && p.h === h)){ toast('Ya enviaste una propuesta ahí — bórrala con doble clic/toque si quieres cambiarla'); return; }
+    toggleDraft(d, h);
     return;
   }
   data[d][h] = sel;
@@ -166,11 +172,16 @@ async function saveData(){
   }
 }
 
-/* TOUCH */
+/* TOUCH
+   Un invitado con "Modo proponer" apagado (por defecto) NUNCA intercepta el
+   toque acá: el navegador hace scroll/zoom normal. Prendido, cada toque
+   marca UNA celda (sin arrastrar) — ver canGuestPaint()/toggleDraft(). El
+   propietario conserva el arrastre completo de siempre. */
 let lastTouchTd = null;
 function initTouch(){
   const gw = document.getElementById('grid');
   gw.addEventListener('touchstart', e => {
+    if(!canGuestPaint()) return;
     const el = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY);
     if(el?.classList.contains('sc')){
       const d = +el.dataset.d, h = +el.dataset.h;
@@ -180,7 +191,7 @@ function initTouch(){
     }
   }, {passive:false});
   gw.addEventListener('touchmove', e => {
-    if(!drag) return;
+    if(!drag || currentRole === 'guest') return;
     const el = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY);
     if(el?.classList.contains('sc') && el !== lastTouchTd){
       paintRange(+el.dataset.d, +el.dataset.h);
@@ -234,6 +245,97 @@ function updateNow(){
   }
 }
 
+/* MODO PROPONER + BORRADOR (invitado)
+   Por defecto el invitado NO pinta al tocar la cuadrícula: puede navegar,
+   hacer scroll o zoom con total libertad (ver initTouch). Solo cuando activa
+   "Modo proponer" cada toque/clic marca una celda como borrador LOCAL (nada
+   se manda al servidor todavía); puede tocarla de nuevo para destocarla —
+   así "reubicar" una propuesta es tan simple como destocar y tocar otra
+   celda — y cuando está conforme, "✓ Enviar propuestas" las manda todas de
+   una vez. */
+let guestPaintMode = false;
+let draftProposals = []; // {d, h, actId} — locales, no enviados aún
+let guestName = localStorage.getItem('hs_guest_name') || '';
+
+function canGuestPaint(){
+  return currentRole !== 'guest' || guestPaintMode;
+}
+
+function toggleGuestPaintMode(){
+  guestPaintMode = !guestPaintMode;
+  const btn = document.getElementById('guestPaintBtn');
+  if(btn){
+    btn.textContent = guestPaintMode ? '🖌️ Modo proponer: ON' : '🖌️ Modo proponer: OFF';
+    btn.classList.toggle('on', guestPaintMode);
+  }
+  toast(guestPaintMode ? 'Toca celdas libres para marcarlas' : 'Puedes desplazarte libremente sin proponer');
+}
+
+function setGuestName(name){
+  guestName = name.trim();
+  localStorage.setItem('hs_guest_name', guestName);
+}
+
+function toggleDraft(d, h){
+  const idx = draftProposals.findIndex(p => p.d === d && p.h === h);
+  if(idx >= 0) draftProposals.splice(idx, 1);
+  else draftProposals.push({ d, h, actId: sel });
+  renderDraftCell(d, h);
+  updateDraftBar();
+}
+
+function renderDraftCell(d, h){
+  const td = cells[d]?.[h];
+  if(!td) return;
+  const draft = draftProposals.find(p => p.d === d && p.h === h);
+  td.classList.remove('draft-cell');
+  if(draft){
+    const a = activityMap[draft.actId] || activityMap.free;
+    td.style.background = a.bg;
+    td.style.color = a.fg;
+    td.textContent = (a.icon ? a.icon + ' ' : '') + a.label;
+    td.classList.add('draft-cell');
+    return;
+  }
+  applyCell(td, data[d][h]);
+  const existing = proposals.find(p => p.d === d && p.h === h);
+  if(existing && data[d][h] === 'free') applyProposalCell(td, existing.actId);
+}
+
+function updateDraftBar(){
+  const bar = document.getElementById('draftBar');
+  if(!bar) return;
+  if(draftProposals.length === 0){ bar.classList.remove('show'); return; }
+  document.getElementById('draftCount').textContent = `${draftProposals.length} celda(s) marcada(s)`;
+  bar.classList.add('show');
+}
+
+function discardDraft(){
+  const items = [...draftProposals];
+  draftProposals = [];
+  items.forEach(p => renderDraftCell(p.d, p.h));
+  updateDraftBar();
+}
+
+async function submitDraft(){
+  if(draftProposals.length === 0) return;
+  if(!guestName){
+    toast('Escribe tu nombre arriba antes de enviar, para que sepan quién propone');
+    document.getElementById('guestNameInput')?.focus();
+    return;
+  }
+  const items = [...draftProposals];
+  draftProposals = [];
+  updateDraftBar();
+  let okCount = 0;
+  for(const item of items){
+    const sent = await addProposal(item.d, item.h, item.actId);
+    if(sent) okCount++;
+    else renderDraftCell(item.d, item.h); // falló (ej. ya no está libre): la deja visible para reintentar
+  }
+  if(okCount > 0) toast(`✓ ${okCount} propuesta(s) enviada(s)`);
+}
+
 /* PROPUESTAS DE INVITADOS
    Un invitado solo puede "proponer" actividades sobre celdas libres — no
    modifica el horario directamente. El propietario aprueba o rechaza desde
@@ -258,13 +360,15 @@ async function saveGuestRules(startHour, endHour, maxHours){
 
 async function addProposal(d, h, actId){
   try{
-    const p = await api('/proposals', { method: 'POST', body: { d, h, actId } });
+    const p = await api('/proposals', { method: 'POST', body: { d, h, actId, proposedBy: guestName } });
     proposals = proposals.filter(x => !(x.d === d && x.h === h));
     proposals.push(p);
     renderProposalOverlay();
     updateProposalBadges();
+    return true;
   }catch(e){
     toast('❌ ' + e.message);
+    return false;
   }
 }
 
@@ -277,7 +381,7 @@ async function removeProposal(id){
 
 function removeOwnProposal(d, h){
   const p = proposals.find(x => x.d === d && x.h === h);
-  if(p) removeProposal(p.id);
+  return p ? removeProposal(p.id) : Promise.resolve();
 }
 
 function applyProposalCell(td, actId){
@@ -334,7 +438,8 @@ function renderPropList(){
     row.className = 'act-row';
     const label = document.createElement('span');
     label.style.cssText = 'flex:1;font-size:12px;';
-    label.textContent = `${days[p.d]} ${String(p.h).padStart(2, '0')}:00–${String(p.h + 1).padStart(2, '0')}:00 → ${(a.icon ? a.icon + ' ' : '') + a.label}`;
+    const who = p.proposedBy ? `${p.proposedBy}: ` : '';
+    label.textContent = `${who}${days[p.d]} ${String(p.h).padStart(2, '0')}:00–${String(p.h + 1).padStart(2, '0')}:00 → ${(a.icon ? a.icon + ' ' : '') + a.label}`;
     const ok = document.createElement('button');
     ok.className = 'btn'; ok.textContent = '✓ Aprobar';
     ok.onclick = async () => { await approveProposal(p); renderPropList(); };
@@ -352,7 +457,8 @@ async function copyProposalsText(){
     const a = activityMap[p.actId] || activityMap.free;
     return `${days[p.d]} ${String(p.h).padStart(2, '0')}:00–${String(p.h + 1).padStart(2, '0')}:00 → ${(a.icon ? a.icon + ' ' : '') + a.label}`;
   });
-  const text = 'Propuestas de horario:\n' + lines.join('\n');
+  const who = guestName ? ` de ${guestName}` : '';
+  const text = `Propuestas de horario${who}:\n` + lines.join('\n');
   try{
     await navigator.clipboard.writeText(text);
     toast('📋 Copiado — envíaselo al propietario');

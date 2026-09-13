@@ -177,6 +177,20 @@ body:not(.role-guest) .guest-only{display:none !important;}
 td.sc.proposal-cell{outline:2px dashed var(--now);outline-offset:-2px;}
 td.sc.proposal-cell::after{content:'🕓';position:absolute;top:0;right:1px;font-size:8px;line-height:1;}
 
+/* Celdas marcadas por el invitado pero TODAVÍA NO enviadas (borrador local,
+   ver "Modo proponer" en grid.js): borde punteado fino + lápiz, distinto del
+   🕓 de una propuesta ya enviada, para que se note que solo vive en su
+   pantalla hasta que le dé "Enviar propuestas". */
+td.sc.draft-cell{outline:2px dotted var(--now);outline-offset:-2px;opacity:.75;}
+td.sc.draft-cell::after{content:'✏️';position:absolute;top:0;right:1px;font-size:8px;line-height:1;}
+
+#guestNameInput{font:inherit;font-size:11px;padding:5px 9px;border-radius:7px;border:1px solid var(--btn-border);background:var(--btn-bg);color:var(--text);width:110px;}
+
+/* Barra flotante con las celdas marcadas por el invitado, pendientes de
+   enviar. Comparte el patrón visual de #toast/#dragTip (fixed, centrada). */
+#draftBar{display:none;position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:1500;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:8px 10px;box-shadow:0 8px 24px rgba(0,0,0,.2);align-items:center;gap:8px;font-size:12px;}
+#draftBar.show{display:flex;}
+
 /* ROL "booking": no ve el horario en absoluto (privacidad), solo la vista
    dedicada de disponibilidad + solicitud de cita. */
 #bookingView{display:none;}
